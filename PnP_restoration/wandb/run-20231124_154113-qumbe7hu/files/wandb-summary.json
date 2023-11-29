@@ -1,0 +1,1 @@
+{"std_0": 90, "std_end": 5, "lamb_0": 1, "lamb_end": 0.1, "tau": 0.0001, "output_psnr": 16.899913050579045, "output_ssim": 0.372906893491745, "_timestamp": 1700836906.8326676, "_runtime": 33.55421161651611, "_step": 0, "_wandb": {"runtime": 35}}

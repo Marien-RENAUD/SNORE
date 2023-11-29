@@ -1,0 +1,381 @@
+{
+    "os": "Linux-3.10.0-957.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.9.18",
+    "heartbeatAt": "2023-11-24T14:29:21.253433",
+    "startedAt": "2023-11-24T14:29:20.452304",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--extract_images",
+        "--extract_curves",
+        "--dataset_name",
+        "set3c",
+        "--noise_level_img",
+        "30",
+        "--Average_PnP",
+        "--no_backtracking",
+        "--use_wandb",
+        "--kernel_index",
+        "0"
+    ],
+    "state": "running",
+    "program": "/beegfs/mrenaud/GSPnP_2/PnP_restoration/deblur.py",
+    "codePath": "PnP_restoration/deblur.py",
+    "git": {
+        "remote": "https://github.com/samuro95/GSPnP.git",
+        "commit": "da8fb2db9e54ae37069c6fafb4936990e0fa3b6a"
+    },
+    "email": null,
+    "root": "/beegfs/mrenaud/GSPnP_2",
+    "host": "sirocco25.plafrim.cluster",
+    "username": "mrenaud",
+    "executable": "/beegfs/mrenaud/env_gs/bin/python",
+    "cpu_count": 64,
+    "cpu_count_logical": 64,
+    "cpu_freq": {
+        "current": 2595.1620000000003,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2595.162,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "total": 59.970703125,
+        "used": 36.55133819580078
+    },
+    "gpu": "NVIDIA A100-PCIE-40GB",
+    "gpu_count": 2,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA A100-PCIE-40GB",
+            "memory_total": 42949672960
+        },
+        {
+            "name": "NVIDIA A100-PCIE-40GB",
+            "memory_total": 42949672960
+        }
+    ],
+    "memory": {
+        "total": 503.46696853637695
+    }
+}

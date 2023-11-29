@@ -1,0 +1,45 @@
+wandb_version: 1
+
+lamb_0:
+  desc: null
+  value: 28.024203098947105
+lamb_end:
+  desc: null
+  value: 3.623957419683181
+std_0:
+  desc: null
+  value: 68.12346230692971
+std_end:
+  desc: null
+  value: 2.61784454429007
+tau:
+  desc: null
+  value: 0.00044143259126919735
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.18
+    cli_version: 0.15.4
+    framework: lightning
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1700816362.472923
+    t:
+      1:
+      - 1
+      - 9
+      - 41
+      - 55
+      2:
+      - 1
+      - 9
+      - 41
+      - 55
+      3:
+      - 2
+      - 23
+      - 37
+      4: 3.9.18
+      5: 0.15.4
+      8:
+      - 5

@@ -1,0 +1,12 @@
+wandb_version: 1
+
+lamb_0:
+  value: 69.34077371074336
+lamb_end:
+  value: 3.750782519441869
+std_0:
+  value: 91.62645348595316
+std_end:
+  value: 6.151404090060042
+tau:
+  value: 0.003211586010525549

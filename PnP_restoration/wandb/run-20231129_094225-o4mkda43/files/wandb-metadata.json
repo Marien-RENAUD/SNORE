@@ -1,0 +1,258 @@
+{
+    "os": "Linux-3.10.0-957.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.9.18",
+    "heartbeatAt": "2023-11-29T08:42:27.190848",
+    "startedAt": "2023-11-29T08:42:25.852970",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--extract_images",
+        "--extract_curves",
+        "--noise_level_img",
+        "10",
+        "--no_backtracking",
+        "--dataset_name",
+        "set3c",
+        "--Average_PnP"
+    ],
+    "state": "running",
+    "program": "/beegfs/mrenaud/GSPnP_2/PnP_restoration/deblur.py",
+    "codePath": "PnP_restoration/deblur.py",
+    "git": {
+        "remote": "https://github.com/samuro95/GSPnP.git",
+        "commit": "da8fb2db9e54ae37069c6fafb4936990e0fa3b6a"
+    },
+    "email": null,
+    "root": "/beegfs/mrenaud/GSPnP_2",
+    "host": "sirocco17.plafrim.cluster",
+    "username": "mrenaud",
+    "executable": "/beegfs/mrenaud/env_gs/bin/python",
+    "cpu_count": 40,
+    "cpu_count_logical": 40,
+    "cpu_freq": {
+        "current": 1000.5499250000003,
+        "min": 1000.0,
+        "max": 2400.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.195,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.195,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1021.582,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.195,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 999.902,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        },
+        {
+            "current": 1000.048,
+            "min": 1000.0,
+            "max": 2400.0
+        }
+    ],
+    "disk": {
+        "total": 59.970703125,
+        "used": 38.25332260131836
+    },
+    "gpu": "Tesla V100-PCIE-16GB",
+    "gpu_count": 2,
+    "gpu_devices": [
+        {
+            "name": "Tesla V100-PCIE-16GB",
+            "memory_total": 17179869184
+        },
+        {
+            "name": "Tesla V100-PCIE-16GB",
+            "memory_total": 17179869184
+        }
+    ],
+    "memory": {
+        "total": 1007.2674751281738
+    }
+}

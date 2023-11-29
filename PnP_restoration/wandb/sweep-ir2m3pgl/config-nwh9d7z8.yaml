@@ -1,0 +1,12 @@
+wandb_version: 1
+
+lamb_0:
+  value: 50
+lamb_end:
+  value: 5
+std_0:
+  value: 80
+std_end:
+  value: 10
+tau:
+  value: 0.001

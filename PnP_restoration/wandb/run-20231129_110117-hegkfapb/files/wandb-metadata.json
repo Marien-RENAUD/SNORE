@@ -1,0 +1,258 @@
+{
+    "os": "Linux-3.10.0-957.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.9.18",
+    "heartbeatAt": "2023-11-29T10:01:18.807517",
+    "startedAt": "2023-11-29T10:01:17.316677",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--extract_images",
+        "--extract_curves",
+        "--noise_level_img",
+        "10",
+        "--no_backtracking",
+        "--dataset_name",
+        "set3c",
+        "--Average_PnP"
+    ],
+    "state": "running",
+    "program": "/beegfs/mrenaud/GSPnP_2/PnP_restoration/deblur.py",
+    "codePath": "PnP_restoration/deblur.py",
+    "git": {
+        "remote": "https://github.com/samuro95/GSPnP.git",
+        "commit": "da8fb2db9e54ae37069c6fafb4936990e0fa3b6a"
+    },
+    "email": null,
+    "root": "/beegfs/mrenaud/GSPnP_2",
+    "host": "sirocco18.plafrim.cluster",
+    "username": "mrenaud",
+    "executable": "/beegfs/mrenaud/env_gs/bin/python",
+    "cpu_count": 40,
+    "cpu_count_logical": 40,
+    "cpu_freq": {
+        "current": 801.3071500000003,
+        "min": 800.0,
+        "max": 2100.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.189,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.189,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.189,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 851.458,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 799.932,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        },
+        {
+            "current": 800.061,
+            "min": 800.0,
+            "max": 2100.0
+        }
+    ],
+    "disk": {
+        "total": 59.970703125,
+        "used": 37.706607818603516
+    },
+    "gpu": "Quadro RTX 8000",
+    "gpu_count": 2,
+    "gpu_devices": [
+        {
+            "name": "Quadro RTX 8000",
+            "memory_total": 48318382080
+        },
+        {
+            "name": "Quadro RTX 8000",
+            "memory_total": 48318382080
+        }
+    ],
+    "memory": {
+        "total": 187.33302307128906
+    }
+}

@@ -1,0 +1,12 @@
+hdf5storage==0.1.19
+matplotlib==3.7.1
+natsort==8.4.0
+numpy==1.25.0
+opencv_python==4.8.0.74
+pytorch_lightning==2.0.4
+scipy==1.11.1
+torch==2.0.1
+torchmetrics==0.11.4
+torchvision==0.15.2
+wandb==0.15.4
+scikit-image==0.22.0

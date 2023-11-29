@@ -1,0 +1,45 @@
+wandb_version: 1
+
+lamb_0:
+  desc: null
+  value: 2
+maxitr:
+  desc: null
+  value: 200
+std_0:
+  desc: null
+  value: 30
+std_end:
+  desc: null
+  value: 5
+tau:
+  desc: null
+  value: 1
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.18
+    cli_version: 0.15.4
+    framework: lightning
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1701244456.53274
+    t:
+      1:
+      - 1
+      - 9
+      - 41
+      - 55
+      2:
+      - 1
+      - 9
+      - 41
+      - 55
+      3:
+      - 23
+      - 24
+      - 37
+      4: 3.9.18
+      5: 0.15.4
+      8:
+      - 5
