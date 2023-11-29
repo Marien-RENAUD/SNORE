@@ -114,7 +114,16 @@ def deblur():
                 PnP_module.hparams.maxitr = 600
 
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-            exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)
+            # exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)
+            exp_out_path = "../../Result_Average_PnP"
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
+            exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
+            exp_out_path = os.path.join(exp_out_path, hparams.dataset_name)
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
             exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg+"_k_"+str(k_index))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
