@@ -14,14 +14,14 @@ from utils.utils_restoration import imsave, single2uint, rescale
 from scipy import ndimage
 from tqdm import tqdm
 
-loss_lpips = LPIPS(net='alex', version='0.1.4')
+loss_lpips = LPIPS(net='alex', version='0.1')
 
 class PnP_restoration():
 
     def __init__(self, hparams):
 
         self.hparams = hparams
-        self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device('cuda:'+str(self.hparams.gpu_number) if torch.cuda.is_available() else 'cpu')
         self.initialize_cuda_denoiser()
 
     def initialize_cuda_denoiser(self):
@@ -197,11 +197,11 @@ class PnP_restoration():
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
-        if self.hparams.opt_alg == "PnP_Prox":
+        if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
             if self.hparams.stepsize is not None:
-                self.hparams.tau = self.hparams.stepsize
+                self.hparams.stepsize = self.hparams.stepsize
             else:
-                self.hparams.tau = 1 / self.hparams.lamb
+                self.hparams.stepsize = 1 / self.hparams.lamb
 
         i = 0 # iteration counter
 
@@ -218,7 +218,7 @@ class PnP_restoration():
             x0 = self.At(x0)
         if self.hparams.use_hard_constraint:
             x0 = torch.clamp(x0, 0, 1)
-        x0 = self.data_fidelity_prox_step(x0, img_tensor, self.hparams.tau)
+        x0 = self.data_fidelity_prox_step(x0, img_tensor, self.hparams.stepsize)
         x = x0
 
         if extract_results:  # extract np images and PSNR values
@@ -346,9 +346,25 @@ class PnP_restoration():
                 # Gradient of the regularization term
                 _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
                 # Gradient step
-                z = x_old - self.hparams.tau * self.hparams.lamb * Dg
+                z = x_old - self.hparams.stepsize * self.hparams.lamb * Dg
                 # Proximal step
-                x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.tau)
+                x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.stepsize)
+
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                f, F = self.calculate_F(x_old, img_tensor, self.hparams.lamb, g=g)
+
+                y = z # output image is the output of the denoising step
+            
+            if self.hparams.opt_alg == "PnP_GD":
+                x_old = x
+                # Gradient of the regularization term
+                _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
+                # Gradient step
+                z = x_old - self.hparams.stepsize * self.hparams.lamb * Dg
+                # Proximal step
+                x = z - self.hparams.stepsize * data_grad(x_old)
 
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
@@ -373,7 +389,7 @@ class PnP_restoration():
                 x_old_noise = x_old + noise
                 _,g,Dg = self.denoise(x_old_noise, std_i)
                 # Total-Gradient step
-                x = x_old - self.hparams.tau * (lamb_i * Dg + data_grad(x_old))
+                x = x_old - self.hparams.stepsize * (lamb_i * Dg + data_grad(x_old))
                 # Hard constraint
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
@@ -387,10 +403,10 @@ class PnP_restoration():
             if i>1 and use_backtracking :
                 diff_x = (torch.norm(x - x_old, p=2) ** 2)
                 diff_F = F_old - F
-                if diff_F < (self.hparams.gamma_backtracking / self.tau) * diff_x :
-                    self.tau = self.hparams.eta_backtracking * self.tau
+                if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
+                    self.stepsize = self.hparams.eta_backtracking * self.stepsize
                     self.backtracking_check = False
-                    print('backtracking : tau =', self.tau, 'diff_F=', diff_F)
+                    print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
                 else : 
                     self.backtracking_check = True
 
@@ -566,18 +582,18 @@ class PnP_restoration():
     def add_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--dataset_path', type=str, default='../datasets')
+        parser.add_argument('--gpu_number', type=int, default=0)
         parser.add_argument('--pretrained_checkpoint', type=str,default='../GS_denoising/ckpts/GSDRUNet.ckpt')
         parser.add_argument('--noise_model', type=str,  default='gaussian')
         parser.add_argument('--dataset_name', type=str, default='set3c')
         parser.add_argument('--noise_level_img', type=float, required=True)
-        parser.add_argument('--maxitr', type=int, default=1000)
+        parser.add_argument('--maxitr', type=int)
         parser.add_argument('--stepsize', type=float)
         parser.add_argument('--lamb', type=float)
         parser.add_argument('--std_0', type=float)
         parser.add_argument('--std_end', type=float)
         parser.add_argument('--lamb_0', type=float)
         parser.add_argument('--lamb_end', type=float)
-        parser.add_argument('--tau', type=float)
         parser.add_argument('--sigma_denoiser', type=float)
         parser.add_argument('--n_images', type=int, default=68)
         parser.add_argument('--crit_conv', type=str, default='cost')

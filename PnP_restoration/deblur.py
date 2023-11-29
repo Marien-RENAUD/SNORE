@@ -5,11 +5,14 @@ from scipy import ndimage
 from argparse import ArgumentParser
 from utils.utils_restoration import rescale, psnr, array2tensor, tensor2array, get_gaussian_noise_parameters, create_out_dir, single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave
 from skimage.metrics import structural_similarity as ssim
+from lpips import LPIPS
 from natsort import os_sorted
 from GS_PnP_restoration import PnP_restoration
 import wandb
 import cv2
 import imageio
+
+loss_lpips = LPIPS(net='alex', version='0.1')
 
 # # Define sweep config
 # sweep_configuration = {
@@ -20,7 +23,7 @@ import imageio
 #         "std_0": {"values" : [18./255.]},
 #         "std_end": {"values" : [1.8/255.]},
 #         "lamb_0": {"values" : [.3]},
-#         "tau" : {"values" : [1.]},
+#         "stepsize" : {"values" : [1.]},
 #         "maxitr" : {"values" : [600]}
 #     },
 #     # 'num_sweeps': 20,
@@ -94,19 +97,25 @@ def deblur():
         if hparams.extract_curves:
             PnP_module.initialize_curves()
 
-        if PnP_module.hparams.opt_alg == 'PnP_Prox':
-            PnP_module.hparams.lamb, PnP_module.hparams.sigma_denoiser, PnP_module.hparams.maxitr, PnP_module.hparams.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, k_index=k_index, degradation_mode='deblur')
+        if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+            PnP_module.hparams.lamb, PnP_module.hparams.sigma_denoiser, PnP_module.hparams.maxitr, PnP_module.hparams.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
             print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(hparams.noise_level_img, hparams.sigma_denoiser, hparams.lamb))
 
         if PnP_module.hparams.opt_alg == 'Average_PnP':
             PnP_module.hparams.std_0 = 1.8 * hparams.noise_level_img /255.
             PnP_module.hparams.std_end = 1.8 /255.
-            PnP_module.hparams.tau = 1.
+            PnP_module.hparams.stepsize = 1.
             if hparams.noise_level_img == 1:
-                PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = 1.
+                if PnP_module.hparams.lamb == None:
+                    PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = 1.
+                else:
+                    PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = PnP_module.hparams.lamb
                 PnP_module.hparams.maxitr = 200
             if hparams.noise_level_img == 10:
-                PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = .3
+                if PnP_module.hparams.lamb == None:
+                    PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = .3
+                else:
+                    PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = PnP_module.hparams.lamb
                 PnP_module.hparams.maxitr = 600
 
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
@@ -123,6 +132,10 @@ def deblur():
             exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg+"_k_"+str(k_index))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
+            if PnP_module.hparams.lamb != None:
+                exp_out_path = os.path.join(exp_out_path, "lamb_"+str(PnP_module.hparams.lamb))
+                if not os.path.exists(exp_out_path):
+                    os.mkdir(exp_out_path)
 
         for i in range(min(len(input_paths),hparams.n_images)): # For each image
 
@@ -147,7 +160,7 @@ def deblur():
             # std_end = wandb.config.std_end
             # lamb_0 = wandb.config.lamb_0
             # lamb_end = wandb.config.lamb_0
-            # tau = wandb.config.tau
+            # stepsize = wandb.config.stepsize
             # maxitr = wandb.config.maxitr
 
             # PnP restoration
@@ -201,20 +214,21 @@ def deblur():
                 #         writer.append_data(im)
 
                 #save the result of the experiment
+                input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
                 dict = {
                         'GT' : input_im,
                         'Deblur' : deblur_im,
                         'Blur' : blur_im,
                         'PSNR_blur' : psnr(input_im, blur_im),
                         'SSIM_blur' : ssim(input_im, blur_im, data_range = 1, channel_axis = 2),
+                        'LPIPS_blur' : loss_lpips.forward(input_im_tensor, blur_im_tensor).item(),
                         'Init' : init_im,
                         'SSIM_output' : output_ssim,
                         'PSNR_output' : output_psnr,
+                        'LPIPS_output' : output_lpips,
                         'kernel' : k,
                     }
                 np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
-        
-        
 
         if hparams.extract_curves:
             # Save curves
@@ -236,7 +250,7 @@ def deblur():
     #             "std_end": std_end,
     #             "lamb_0": lamb_0,
     #             "lamb_end": lamb_end,
-    #             "tau": tau,
+    #             "stepsize": stepsize,
     #             "maxitr": maxitr,
     #             "output_psnr" : np.mean(np.array(psnr_list)),
     #             "output_ssim" : np.mean(np.array(ssim_list)),

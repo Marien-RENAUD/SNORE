@@ -6,25 +6,37 @@ import cv2
 import os 
 
 
-def get_gaussian_noise_parameters(noise_level_img, k_index=0, degradation_mode='deblur'):
+def get_gaussian_noise_parameters(noise_level_img, hparams, k_index=0, degradation_mode='deblur'):
     '''
     Hyperparamers have been optimized for each algorithms at noise levels 0.01 0.03 and 0.05. For other noise levels, optimality is not guaranteed.
     '''
     if degradation_mode == 'deblur' :
-        if k_index == 8 :
-            lamb = 0.075
-        elif k_index == 9 :
-            lamb = 0.075
-        else :
-            lamb = 0.1
+        if hparams.lamb == None:
+            if k_index == 8 :
+                lamb = 0.075
+            elif k_index == 9 :
+                lamb = 0.075
+            else :
+                lamb = 0.1
+        else:
+            lamb = hparams.lamb
         sigma_k_denoiser = 1.8
-        thres_conv = 1e-5
+        if hparams.thres_conv == None:
+            thres_conv = 1e-5
+        else:
+            thres_conv = hparams.thres_conv
     if degradation_mode == 'SR' :
         sigma_k_denoiser = 2.
         thres_conv = 1e-6
         lamb = 0.065
-    sigma_denoiser = sigma_k_denoiser*noise_level_img
-    maxitr = 400
+    if hparams.sigma_denoiser == None:
+        sigma_denoiser = sigma_k_denoiser*noise_level_img
+    else:
+        sigma_denoiser = hparams.sigma_denoiser
+    if hparams.maxitr == None:
+        maxitr = 400
+    else:
+        maxitr = hparams.maxitr
     return lamb, sigma_denoiser / 255., maxitr, thres_conv
 
 def create_out_dir(degradation_mode, dataset_name) : 
