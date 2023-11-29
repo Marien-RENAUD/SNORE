@@ -53,9 +53,7 @@ def deblur():
         input_path = os.path.join(hparams.dataset_path,hparams.dataset_name)
         input_paths = os_sorted([os.path.join(input_path,p) for p in os.listdir(input_path)])
 
-    psnr_list = []
-    ssim_list = []
-    F_list = []
+    psnr_list, ssim_list, lpips_list, F_list = [], [], [], []
 
     if hparams.kernel_path is not None : # if a specific kernel saved in hparams.kernel_path as np array is given 
         k_list = [np.load(hparams.kernel_path)]
@@ -89,9 +87,7 @@ def deblur():
 
     for k_index in k_index_list : # For each kernel
 
-        psnr_k_list = []
-        ssim_k_list = []
-        n_it_list = []
+        n_it_list, psnr_k_list, ssim_k_list, lpips_k_list = [], [], [], []
 
         k = k_list[k_index]
 
@@ -156,9 +152,9 @@ def deblur():
 
             # PnP restoration
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-                deblur_im, init_im, output_psnr, output_ssim, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
             else :
-                deblur_im, init_im, output_psnr, output_ssim, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
 
 
             print('PSNR: {:.2f}dB'.format(output_psnr))
@@ -167,8 +163,10 @@ def deblur():
             
             psnr_k_list.append(output_psnr)
             ssim_k_list.append(output_ssim)
+            lpips_k_list.append(output_lpips)
             psnr_list.append(output_psnr)
             ssim_list.append(output_ssim)
+            lpips_list.append(output_lpips)
             n_it_list.append(n_it)
 
             if hparams.extract_curves:

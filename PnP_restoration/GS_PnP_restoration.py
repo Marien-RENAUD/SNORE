@@ -7,11 +7,14 @@ import torch
 from argparse import ArgumentParser
 from utils.utils_restoration import rgb2y, psnr, array2tensor, tensor2array
 from skimage.metrics import structural_similarity as ssim
+from lpips import LPIPS
 import sys
 from matplotlib.ticker import MaxNLocator
 from utils.utils_restoration import imsave, single2uint, rescale
 from scipy import ndimage
 from tqdm import tqdm
+
+loss_lpips = LPIPS(net='alex')
 
 class PnP_restoration():
 
@@ -191,7 +194,7 @@ class PnP_restoration():
 
         self.sf = sf
         if extract_results:
-            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], []
+            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
         if self.hparams.opt_alg == "PnP_Prox":
@@ -410,6 +413,8 @@ class PnP_restoration():
                     psnr_tab.append(current_z_psnr)
                     current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
                     ssim_tab.append(current_z_ssim)
+                    current_z_lpips = loss_lpips.forward(clean_img, out_z)
+                    lpips_tab.append(current_z_lpips)
                     F_list.append(F)
                     f_list.append(f)
                 
@@ -434,11 +439,12 @@ class PnP_restoration():
         output_img = tensor2array(y.cpu())
         output_psnr = psnr(clean_img, output_img)
         output_ssim = ssim(clean_img, output_img, data_range = 1, channel_axis = 2)
+        output_lpips = loss_lpips.forward(clean_img, output_img)
 
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(g_list), np.array(F_list), np.array(f_list)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
         else:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, i
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, i
 
     def initialize_curves(self):
 
@@ -446,6 +452,7 @@ class PnP_restoration():
         self.conv_F = []
         self.PSNR = []
         self.SSIM = []
+        self.LPIPS = []
         self.g = []
         self.Dg = []
         self.F = []
@@ -454,7 +461,7 @@ class PnP_restoration():
         self.lip_D = []
         self.lip_Dg = []
 
-    def update_curves(self, x_list, psnr_tab, ssim_tab, Dg_list, g_list, F_list, f_list):
+    def update_curves(self, x_list, psnr_tab, ssim_tab, lpips_tab, Dg_list, g_list, F_list, f_list):
 
         self.F.append(F_list)
         self.f.append(f_list)
@@ -462,6 +469,7 @@ class PnP_restoration():
         self.Dg.append(Dg_list)
         self.PSNR.append(psnr_tab)
         self.SSIM.append(ssim_tab)
+        self.LPIPS.append(lpips_tab)
         self.conv.append(np.array([(np.linalg.norm(x_list[k + 1] - x_list[k]) ** 2) for k in range(len(x_list) - 1)]) / np.sum(np.abs(x_list[0]) ** 2))
         self.lip_algo.append(np.sqrt(np.array([np.sum(np.abs(x_list[k + 1] - x_list[k]) ** 2) for k in range(1, len(x_list) - 1)]) / np.array([np.sum(np.abs(x_list[k] - x_list[k - 1]) ** 2) for k in range(1, len(x_list[:-1]))])))
 
@@ -506,12 +514,21 @@ class PnP_restoration():
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
+        for i in range(len(self.LPIPS)):
+            plt.plot(self.LPIPS[i], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'LPIPS.png'),bbox_inches="tight")
+
+        plt.figure(4)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
         for i in range(len(self.F)):
             plt.plot(self.F[i], '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'F.png'), bbox_inches="tight")
 
-        plt.figure(4)
+        plt.figure(5)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -522,7 +539,7 @@ class PnP_restoration():
 
         # conv_DPIR = np.load('conv_DPIR2.npy')
         conv_rate = self.conv[0][0]*np.array([(1/k) for k in range(1,len(self.conv[0]))])
-        plt.figure(5)
+        plt.figure(6)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -534,7 +551,7 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'conv_log.png'), bbox_inches="tight")
 
-        plt.figure(6)
+        plt.figure(7)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
