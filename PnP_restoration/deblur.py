@@ -159,6 +159,7 @@ def deblur():
 
             print('PSNR: {:.2f}dB'.format(output_psnr))
             print('SSIM: {:.2f}'.format(output_ssim))
+            print('LPIPS: {:.2f}'.format(output_lpips))
             print(f'N iterations: {n_it}')
             
             psnr_k_list.append(output_psnr)
@@ -171,7 +172,7 @@ def deblur():
 
             if hparams.extract_curves:
                 # Create curves
-                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, Dg_list, g_list, F_list, f_list)
+                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, lpips_tab, Dg_list, g_list, F_list, f_list)
 
             if hparams.extract_images:
                 # Save images
