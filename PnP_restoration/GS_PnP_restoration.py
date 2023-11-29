@@ -351,6 +351,8 @@ class PnP_restoration():
                     x = torch.clamp(x,0,1)
                 # Calculate Objective
                 f, F = self.calculate_F(x_old, img_tensor, self.hparams.lamb, g=g)
+
+                y = z # output image is the output of the denoising step
             
             if self.hparams.opt_alg == "Average_PnP":
                 x_old = x
@@ -375,7 +377,8 @@ class PnP_restoration():
                 # Calculate Objective
                 f, F = self.calculate_F(x_old, img_tensor, lamb_i, g=g)
 
-            y = z # output image is the output of the denoising step
+                y = x # output image is the output of the denoising step
+                z = x # To be modified, for no errors in the followinf code            
 
             # Backtracking
             if i>1 and use_backtracking :
