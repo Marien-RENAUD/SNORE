@@ -98,24 +98,27 @@ def deblur():
             PnP_module.initialize_curves()
 
         if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
-            PnP_module.hparams.lamb, PnP_module.hparams.sigma_denoiser, PnP_module.hparams.maxitr, PnP_module.hparams.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
-            print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(hparams.noise_level_img, hparams.sigma_denoiser, hparams.lamb))
+            PnP_module.lamb, PnP_module.sigma_denoiser, PnP_module.maxitr, PnP_module.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
+            print(PnP_module.lamb)
+            print(PnP_module.sigma_denoiser)
+            print(PnP_module.thres_conv)
+            print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(PnP_module.hparams.noise_level_img, PnP_module.sigma_denoiser, PnP_module.lamb))
 
         if PnP_module.hparams.opt_alg == 'Average_PnP' or PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
-            PnP_module.hparams.std_0 = 1.8 * hparams.noise_level_img /255.
-            PnP_module.hparams.std_end = 1.8 /255.
-            PnP_module.hparams.stepsize = 1.
+            PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
+            PnP_module.std_end = 1.8 /255.
+            PnP_module.stepsize = 1.
             if hparams.noise_level_img == 1:
                 if PnP_module.hparams.lamb == None:
-                    PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = 1.
+                    PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = 1.
                 else:
-                    PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = PnP_module.hparams.lamb
+                    PnP_module.lamb_end = PnP_module.lamb_0 = PnP_module.hparams.lamb
                 PnP_module.hparams.maxitr = 200
             if hparams.noise_level_img == 10:
                 if PnP_module.hparams.lamb == None:
-                    PnP_module.hparams.lamb = PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = .3
+                    PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = .3
                 else:
-                    PnP_module.hparams.lamb_end = PnP_module.hparams.lamb_0 = PnP_module.hparams.lamb
+                    PnP_module.lamb_end = PnP_module.lamb_0 = PnP_module.hparams.lamb
                 PnP_module.hparams.maxitr = 600
 
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
@@ -130,6 +133,9 @@ def deblur():
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
             exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg+"_k_"+str(k_index))
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
+            exp_out_path = os.path.join(exp_out_path, "noise_"+str(PnP_module.hparams.noise_level_img))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
             if PnP_module.hparams.lamb != None:

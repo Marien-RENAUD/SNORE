@@ -13,6 +13,7 @@ from matplotlib.ticker import MaxNLocator
 from utils.utils_restoration import imsave, single2uint, rescale
 from scipy import ndimage
 from tqdm import tqdm
+from time import time
 
 loss_lpips = LPIPS(net='alex', version='0.1')
 
@@ -164,7 +165,7 @@ class PnP_restoration():
         return g
 
 
-    def calculate_F(self,x, img, lamb, g = None):
+    def calculate_F(self,x, img, g = None):
         '''
         Calculation of the objective function value f(x) + lamb*g(x)
         :param x: Point where to evaluate F
@@ -178,7 +179,7 @@ class PnP_restoration():
             f = torch.zeros_like(F)
         else:
             f = self.calulate_data_term(x,img)
-            F = f + lamb * regul
+            F = f + self.lamb * regul
         return f.item(), F.item()
 
     def restore(self, img, init_im, clean_img, degradation,extract_results=False, sf=1):
@@ -197,8 +198,11 @@ class PnP_restoration():
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
-        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD") and self.hparams.stepsize is None:
-            self.hparams.stepsize = 1 / self.hparams.lamb
+        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD"):
+            if self.hparams.stepsize is None:
+                self.stepsize = 1 / self.lamb
+            else:
+                self.stepsize = self.hparams.stepsize
 
         i = 0 # iteration counter
 
@@ -212,7 +216,7 @@ class PnP_restoration():
             x0 = self.At(x0)
         if self.hparams.use_hard_constraint:
             x0 = torch.clamp(x0, 0, 1)
-        x0 = self.data_fidelity_prox_step(x0, img_tensor, self.hparams.stepsize)
+        x0 = self.data_fidelity_prox_step(x0, img_tensor, self.stepsize)
         x = x0
 
         if extract_results:  # extract np images and PSNR values
@@ -226,7 +230,7 @@ class PnP_restoration():
         x = x0
 
         diff_F = 1
-        F = 1
+        F = float('inf')
         self.backtracking_check = True
         
         if self.hparams.opt_alg == "PnP_SGD":
@@ -306,91 +310,76 @@ class PnP_restoration():
                 i += 1
             y = x
 
-        # # std_0 = 80./255.
-        # # std_end = 5./255.
-        # std_0 = 1.8*self.hparams.noise_level_img/255. #90.
-        # std_end = 1.8/255.
-        # # # std = 80./255.
-
-        # lamb_0 = .3 #20.
-        # lamb_end = lamb_0 #9. #1.
-        # self.hparams.lamb = lamb_end
-        # # lamb = 10.
-
-        # stepsize = 1
-        # maxitr = 600
-
-        while self.hparams.opt_alg != "PnP_SGD" and i < self.hparams.maxitr:
+        while self.hparams.opt_alg != "PnP_SGD" and i < self.maxitr:
 
             F_old = F
             x_old = x
             
-            # The 50 first steps are special for inpainting
-            if self.hparams.inpainting_init and i < self.hparams.n_init:
-                self.sigma_denoiser = 50
-                use_backtracking = False
-                early_stopping = False
-            else :
-                self.sigma_denoiser = self.hparams.sigma_denoiser
-                use_backtracking = self.hparams.use_backtracking
-                early_stopping = self.hparams.early_stopping
+            # # The 50 first steps are special for inpainting
+            # if self.hparams.inpainting_init and i < self.hparams.n_init:
+            #     self.sigma_denoiser = 50
+            #     use_backtracking = False
+            #     early_stopping = False
+            # else :
+            #     self.sigma_denoiser = self.hparams.sigma_denoiser
+            #     use_backtracking = self.hparams.use_backtracking
+            #     early_stopping = self.hparams.early_stopping
 
             if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
-                x_old = x
                 # Gradient of the regularization term
                 _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
                 # Gradient step
-                z = x_old - self.hparams.stepsize * self.hparams.lamb * Dg
+                z = x_old - self.stepsize * self.lamb * Dg
                 # Data-fidelity step
                 if self.hparams.opt_alg == "PnP_Prox":
-                    x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.stepsize)
+                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
                 if self.hparams.opt_alg == "PnP_GD":
-                    x = z - self.hparams.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                 y = z # output image is the output of the denoising step
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
                 # Calculate Objective
-                f, F = self.calculate_F(x_old, img_tensor, self.hparams.lamb, g=g)
-            
+                f, F = self.calculate_F(x, img_tensor, g=g)
+
             if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
                 x_old = x
-                if i % 50 == 0 and i < self.hparams.maxitr//2:
-                    std_i =  self.hparams.std_0 * (1 - i / (self.hparams.maxitr//2)) + self.hparams.std_end * (i / (self.hparams.maxitr//2))
+                if i % 50 == 0 and i < self.maxitr//2:
+                    std_i =  self.std_0 * (1 - i / (self.maxitr//2)) + self.std_end * (i / (self.maxitr//2))
                     # std_i = std
-                    lamb_i = self.hparams.lamb_0 * (1 - i / (self.hparams.maxitr//2)) + self.hparams.lamb_end * (i / (self.hparams.maxitr//2))
+                    lamb_i = self.lamb_0 * (1 - i / (self.maxitr//2)) + self.lamb_end * (i / (self.maxitr//2))
                     # lamb_i = lamb
                 if i >= self.hparams.maxitr//2:
-                    std_i = self.hparams.std_end
-                    lamb_i = self.hparams.lamb_end
+                    std_i = self.std_end
+                    lamb_i = self.lamb_end
 
                 # Regularization term
                 noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = std_i*torch.ones(*x_old.size()).to(self.device))
                 x_old_noise = x_old + noise
                 _,g,Dg = self.denoise(x_old_noise, std_i)
                 # Total-Gradient step
-                z = x_old - self.hparams.stepsize * lamb_i * Dg 
+                z = x_old - self.stepsize * lamb_i * Dg 
                 if self.hparams.opt_alg == "Average_PnP":
-                    x = z - self.hparams.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                 if self.hparams.opt_alg == "Average_PnP_Prox":
-                    x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.stepsize)
+                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
                 # Hard constraint
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
                 # Calculate Objective
-                f, F = self.calculate_F(x_old, img_tensor, lamb_i, g=g)
+                f, F = self.calculate_F(x, img_tensor, lamb_i, g=g)
 
                 y = x # output image is the output of the denoising step
                 z = x # To be modified, for no errors in the followinf code            
 
             # Backtracking
-            if i>1 and use_backtracking :
+            if self.hparams.use_backtracking :
                 diff_x = (torch.norm(x - x_old, p=2) ** 2)
                 diff_F = F_old - F
-                if diff_F < (self.hparams.gamma_backtracking / self.hparams.stepsize) * diff_x :
-                    self.hparams.stepsize = self.hparams.eta_backtracking * self.hparams.stepsize
+                if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
+                    self.stepsize = self.hparams.eta_backtracking * self.stepsize
                     self.backtracking_check = False
-                    print('backtracking : stepsize =', self.hparams.stepsize, 'diff_F=', diff_F)
-                else : 
+                    print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
+                else :
                     self.backtracking_check = True
 
             if self.backtracking_check : # if the backtracking condition is satisfied
@@ -413,13 +402,14 @@ class PnP_restoration():
                     current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
                     ssim_tab.append(current_z_ssim)
                     clean_img_tensor, out_z_tensor = array2tensor(clean_img).float(), array2tensor(out_z).float()
-                    current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
-                    lpips_tab.append(current_z_lpips)
+                    if self.hparams.lpips:
+                        current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
+                        lpips_tab.append(current_z_lpips)
                     F_list.append(F)
                     f_list.append(f)
-                
+
                 # check decrease of data_fidelity 
-                if early_stopping : 
+                if self.hparams.early_stopping : 
                     if self.hparams.crit_conv == 'cost':
                         if abs(diff_F)/abs(F) < self.hparams.thres_conv:
                             print(f'Convergence reached at iteration {i}')
@@ -578,9 +568,11 @@ class PnP_restoration():
         parser.add_argument('--lamb_0', type=float)
         parser.add_argument('--lamb_end', type=float)
         parser.add_argument('--sigma_denoiser', type=float)
+        parser.add_argument('--lpips', dest='lpips', action='store_true')
+        parser.set_defaults(lpips=False)
         parser.add_argument('--n_images', type=int, default=68)
         parser.add_argument('--crit_conv', type=str, default='cost')
-        parser.add_argument('--thres_conv', type=float, default=1e-7)
+        parser.add_argument('--thres_conv', type=float, default=1e-5)
         parser.add_argument('--no_backtracking', dest='use_backtracking', action='store_false')
         parser.set_defaults(use_backtracking=True)
         parser.add_argument('--eta_backtracking', type=float, default=0.9)
