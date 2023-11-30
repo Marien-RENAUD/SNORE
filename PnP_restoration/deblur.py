@@ -101,7 +101,7 @@ def deblur():
             PnP_module.hparams.lamb, PnP_module.hparams.sigma_denoiser, PnP_module.hparams.maxitr, PnP_module.hparams.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
             print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(hparams.noise_level_img, hparams.sigma_denoiser, hparams.lamb))
 
-        if PnP_module.hparams.opt_alg == 'Average_PnP':
+        if PnP_module.hparams.opt_alg == 'Average_PnP' or PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
             PnP_module.hparams.std_0 = 1.8 * hparams.noise_level_img /255.
             PnP_module.hparams.std_end = 1.8 /255.
             PnP_module.hparams.stepsize = 1.

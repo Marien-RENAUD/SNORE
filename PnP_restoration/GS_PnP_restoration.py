@@ -197,19 +197,13 @@ class PnP_restoration():
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
-        if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
-            if self.hparams.stepsize is not None:
-                self.hparams.stepsize = self.hparams.stepsize
-            else:
-                self.hparams.stepsize = 1 / self.hparams.lamb
+        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD") and self.hparams.stepsize is None:
+            self.hparams.stepsize = 1 / self.hparams.lamb
 
         i = 0 # iteration counter
 
         img_tensor = array2tensor(img).to(self.device) # for GPU computations (if GPU available)
         self.initialize_prox(img_tensor, degradation) # prox calculus that can be done outside of the loop
-
-        #Data gradient computation for deblurring
-        data_grad = lambda x: self.At(self.A(x) - img_tensor)/self.hparams.noise_level_img
 
         # Initialization of the algorithm
         x0 = array2tensor(init_im).to(self.device)
@@ -232,7 +226,7 @@ class PnP_restoration():
         x = x0
 
         diff_F = 1
-        F = 1 
+        F = 1
         self.backtracking_check = True
         
         if self.hparams.opt_alg == "PnP_SGD":
@@ -256,7 +250,7 @@ class PnP_restoration():
                 if i % 50 == 0:
                     imsave('deblurring/test_xdenoised_' + str(i) + '.png', single2uint(tensor2array(x_denoised.cpu())))
                 noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-                x = x_old - delta_0 * lamb * Dg / std**2 - delta_0 * data_grad(x_old) + delta_0 * noise
+                x = x_old - delta_0 * lamb * Dg / std**2 - delta_0 * self.data_fidelity_grad(x_old, img_tensor) + delta_0 * noise
                 z = x
 
                 f, F = self.calculate_F(x_old, img_tensor, g=g)
@@ -287,7 +281,7 @@ class PnP_restoration():
                 delta_i = delta_0/(i**0.8)
                 x_old = x
                 _,g,Dg = self.denoise(x_old, std)
-                z = x_old - delta_i * lamb * Dg / std**2 - delta_i * data_grad(x_old)
+                z = x_old - delta_i * lamb * Dg / std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
                 noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
                 x = z + delta_i * noise
                 f, F = self.calculate_F(x_old, img_tensor, g=g)
@@ -323,7 +317,7 @@ class PnP_restoration():
         # self.hparams.lamb = lamb_end
         # # lamb = 10.
 
-        # tau = 1
+        # stepsize = 1
         # maxitr = 600
 
         while self.hparams.opt_alg != "PnP_SGD" and i < self.hparams.maxitr:
@@ -351,7 +345,7 @@ class PnP_restoration():
                 if self.hparams.opt_alg == "PnP_Prox":
                     x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.stepsize)
                 if self.hparams.opt_alg == "PnP_GD":
-                    x = z - self.hparams.stepsize * data_grad(x_old)
+                    x = z - self.hparams.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                 y = z # output image is the output of the denoising step
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
@@ -376,7 +370,7 @@ class PnP_restoration():
                 # Total-Gradient step
                 z = x_old - self.hparams.stepsize * lamb_i * Dg 
                 if self.hparams.opt_alg == "Average_PnP":
-                    x = z - self.hparams.stepsize * data_grad(x_old)
+                    x = z - self.hparams.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                 if self.hparams.opt_alg == "Average_PnP_Prox":
                     x = self.data_fidelity_prox_step(z, img_tensor, self.hparams.stepsize)
                 # Hard constraint
@@ -388,12 +382,10 @@ class PnP_restoration():
                 y = x # output image is the output of the denoising step
                 z = x # To be modified, for no errors in the followinf code            
 
-            
-
             # Backtracking
             if i>1 and use_backtracking :
                 diff_x = (torch.norm(x - x_old, p=2) ** 2)
-                diff_F = np.abs(F_old - F)
+                diff_F = F_old - F
                 if diff_F < (self.hparams.gamma_backtracking / self.hparams.stepsize) * diff_x :
                     self.hparams.stepsize = self.hparams.eta_backtracking * self.hparams.stepsize
                     self.backtracking_check = False
