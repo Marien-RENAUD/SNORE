@@ -63,10 +63,10 @@ import imageio
 # plt.show()
 
 
-path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set1c/PnP_Prox_k_0"
+path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set1c/PnP_GD_k_0"
 
 # name_list = ["Average_kernel_0","kernel_0"]
-im_name_list = ["0.01", "0.05", "0.06", "0.07", "0.08", "0.1", "0.5", "1.0"]
+im_name_list = ["0.01", "0.05", "0.07", "0.09", "0.7"]
 
 im_list = []
 
