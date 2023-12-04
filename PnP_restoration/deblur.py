@@ -54,7 +54,7 @@ def deblur():
         input_path = os.path.join(hparams.dataset_path,hparams.dataset_name)
         input_paths = os_sorted([os.path.join(input_path,p) for p in os.listdir(input_path)])
 
-    psnr_list, ssim_list, lpips_list, F_list = [], [], [], []
+    psnr_list, ssim_list, lpips_list, brisque_list, F_list = [], [], [], [], []
 
     if hparams.kernel_path is not None : # if a specific kernel saved in hparams.kernel_path as np array is given 
         k_list = [np.load(hparams.kernel_path)]
@@ -79,8 +79,8 @@ def deblur():
         else :
             k_index_list = range(len(k_list))
 
-    # # if hparams.use_wandb:
-    wandb.init()        
+    if hparams.use_wandb:
+        wandb.init()        
     data = []
 
     PSNR_mean, SSIM_mean = [], []
@@ -88,7 +88,7 @@ def deblur():
 
     for k_index in k_index_list : # For each kernel
 
-        n_it_list, psnr_k_list, ssim_k_list, lpips_k_list = [], [], [], []
+        n_it_list, psnr_k_list, ssim_k_list, lpips_k_list, brisque_k_list = [], [], [], [], []
 
         k = k_list[k_index]
 
@@ -117,11 +117,12 @@ def deblur():
             else:
                 PnP_module.maxitr = PnP_module.hparams.maxitr
         
-        PnP_module.lamb = wandb.config.lamb_0
-        PnP_module.lamb_0 = wandb.config.lamb_0
-        PnP_module.lamb_end = wandb.config.lamb_0
-        PnP_module.stepsize = wandb.config.stepsize
-        PnP_module.maxitr = wandb.config.maxitr
+        if hparams.use_wandb:
+            PnP_module.lamb = wandb.config.lamb_0
+            PnP_module.lamb_0 = wandb.config.lamb_0
+            PnP_module.lamb_end = wandb.config.lamb_0
+            PnP_module.stepsize = wandb.config.stepsize
+            PnP_module.maxitr = wandb.config.maxitr
 
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
             # exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)
@@ -148,6 +149,10 @@ def deblur():
                 exp_out_path = os.path.join(exp_out_path, "no_data_term")
                 if not os.path.exists(exp_out_path):
                     os.mkdir(exp_out_path)
+            if PnP_module.hparams.num_noise != 1:
+                exp_out_path = os.path.join(exp_out_path, "num_noise_"+str(PnP_module.hparams.num_noise))
+                if not os.path.exists(exp_out_path):
+                    os.mkdir(exp_out_path)
 
         for i in range(min(len(input_paths),hparams.n_images)): # For each image
 
@@ -170,22 +175,25 @@ def deblur():
 
             # PnP restoration
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-                deblur_im, init_im, output_psnr, output_ssim, output_lpips, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
             else :
-                deblur_im, init_im, output_psnr, output_ssim, output_lpips, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
 
 
             print('PSNR: {:.2f}dB'.format(output_psnr))
             print('SSIM: {:.2f}'.format(output_ssim))
             print('LPIPS: {:.2f}'.format(output_lpips))
+            print('BRISQUE: {:.2f}'.format(output_brisque))
             print(f'N iterations: {n_it}')
             
             psnr_k_list.append(output_psnr)
             ssim_k_list.append(output_ssim)
             lpips_k_list.append(output_lpips)
+            brisque_k_list.append(output_brisque)
             psnr_list.append(output_psnr)
             ssim_list.append(output_ssim)
             lpips_list.append(output_lpips)
+            brisque_list.append(output_brisque)
             n_it_list.append(n_it)
 
             if hparams.extract_curves:
@@ -231,6 +239,7 @@ def deblur():
                         'SSIM_output' : output_ssim,
                         'PSNR_output' : output_psnr,
                         'LPIPS_output' : output_lpips,
+                        'BRISQUE_output' : output_brisque,
                         'kernel' : k,
                         'lamb' : PnP_module.lamb,
                         'lamb_0' : PnP_module.lamb_0,
@@ -256,19 +265,19 @@ def deblur():
 
         data.append([k_index, avg_k_psnr, np.mean(np.mean(n_it_list))])
     
-    # if hparams.use_wandb:
-    wandb.log(
-        {
-            "std_0": std_0,
-            "std_end": std_end,
-            "lamb_0": lamb_0,
-            "lamb_end": lamb_end,
-            "stepsize": stepsize,
-            "maxitr": maxitr,
-            "output_psnr" : np.mean(np.array(psnr_list)),
-            "output_ssim" : np.mean(np.array(ssim_list)),
-        }
-        )
+    if hparams.use_wandb:
+        wandb.log(
+            {
+                "std_0": PnP_module.std_0,
+                "std_end": PnP_module.std_end,
+                "lamb_0": PnP_module.lamb_0,
+                "lamb_end": PnP_module.lamb_end,
+                "stepsize": PnP_module.stepsize,
+                "maxitr": PnP_module.maxitr,
+                "output_psnr" : np.mean(np.array(psnr_list)),
+                "output_ssim" : np.mean(np.array(ssim_list)),
+            }
+            )
     
     data = np.array(data)
 

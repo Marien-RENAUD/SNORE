@@ -14,8 +14,10 @@ from utils.utils_restoration import imsave, single2uint, rescale
 from scipy import ndimage
 from tqdm import tqdm
 from time import time
+from brisque import BRISQUE
 
 loss_lpips = LPIPS(net='alex', version='0.1')
+brisque = BRISQUE(url=False)
 
 class PnP_restoration():
 
@@ -363,7 +365,7 @@ class PnP_restoration():
                     self.lamb = self.lamb_end
 
                 # Regularization term
-                g_mean = torch.tensor([0]).to(self.device)
+                g_mean = torch.tensor([0]).to(self.device).float()
                 Dg_mean = torch.zeros(*x_old.size()).to(self.device)
                 for _ in range(self.hparams.num_noise):
                     noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
@@ -451,13 +453,14 @@ class PnP_restoration():
         output_img = tensor2array(y.cpu())
         output_psnr = psnr(clean_img, output_img)
         output_ssim = ssim(clean_img, output_img, data_range = 1, channel_axis = 2)
+        output_brisque = brisque.score(output_img)
         clean_img_tensor, output_img_tensor = array2tensor(clean_img).float(), array2tensor(output_img).float()
         output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
 
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
         else:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, i
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i
 
     def initialize_curves(self):
 
