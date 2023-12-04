@@ -11,8 +11,10 @@ from GS_PnP_restoration import PnP_restoration
 import wandb
 import cv2
 import imageio
+from brisque import BRISQUE
 
 loss_lpips = LPIPS(net='alex', version='0.1')
+brisque = BRISQUE(url=False)
 
 # Define sweep config
 sweep_configuration = {
@@ -20,14 +22,14 @@ sweep_configuration = {
     "name": "sweep",
     "metric": {"goal": "maximize", "name": "output_psnr"},
     "parameters": {
-        "lamb_0": {"values" : [3., 2., 4.]},
-        "stepsize" : {"values" : [.1, 0.05, 0.15]},
+        "lamb_0": {"values" : [2., 1.]},
+        "stepsize" : {"values" : [0.15, 0.2]},
         "maxitr" : {"values" : [600]}
     },
     # 'num_sweeps': 20,
 }
 
-# Initialize sweep by passing in config.
+# # Initialize sweep by passing in config.
 sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
 
 def deblur():
@@ -235,6 +237,7 @@ def deblur():
                         'PSNR_blur' : psnr(input_im, blur_im),
                         'SSIM_blur' : ssim(input_im, blur_im, data_range = 1, channel_axis = 2),
                         'LPIPS_blur' : loss_lpips.forward(input_im_tensor, blur_im_tensor).item(),
+                        'BRISQUE_blur' : brisque.score(blur_im),
                         'Init' : init_im,
                         'SSIM_output' : output_ssim,
                         'PSNR_output' : output_psnr,

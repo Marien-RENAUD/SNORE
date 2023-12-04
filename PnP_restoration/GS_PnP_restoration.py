@@ -357,7 +357,7 @@ class PnP_restoration():
                 
             if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
                 x_old = x
-                if i % 50 == 0 and i < self.maxitr//2:
+                if i % (self.maxitr//12) == 0 and i < self.maxitr//2:
                     self.std =  self.std_0 * (1 - i / (self.maxitr//2)) + self.std_end * (i / (self.maxitr//2))
                     self.lamb = self.lamb_0 * (1 - i / (self.maxitr//2)) + self.lamb_end * (i / (self.maxitr//2))
                 if i >= self.maxitr//2:
