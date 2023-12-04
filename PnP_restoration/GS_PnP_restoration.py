@@ -363,9 +363,15 @@ class PnP_restoration():
                     self.lamb = self.lamb_end
 
                 # Regularization term
-                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
-                x_old_noise = x_old + noise
-                _,g,Dg = self.denoise(x_old_noise, self.std)
+                g_mean = torch.tensor([0]).to(self.device)
+                Dg_mean = torch.zeros(*x_old.size()).to(self.device)
+                for _ in range(self.hparams.num_noise):
+                    noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
+                    x_old_noise = x_old + noise
+                    _,g,Dg = self.denoise(x_old_noise, self.std)
+                    g_mean += g
+                    Dg_mean += Dg
+                g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
                 # Total-Gradient step
                 z = x_old - self.stepsize * self.lamb * Dg 
                 if self.hparams.opt_alg == "Average_PnP":
@@ -583,6 +589,7 @@ class PnP_restoration():
         parser.add_argument('--std_end', type=float)
         parser.add_argument('--lamb_0', type=float)
         parser.add_argument('--lamb_end', type=float)
+        parser.add_argument('--num_noise', type=int, default=1)
         parser.add_argument('--sigma_denoiser', type=float)
         parser.add_argument('--lpips', dest='lpips', action='store_true')
         parser.set_defaults(lpips=False)

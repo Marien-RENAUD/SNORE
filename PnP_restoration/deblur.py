@@ -14,23 +14,21 @@ import imageio
 
 loss_lpips = LPIPS(net='alex', version='0.1')
 
-# # Define sweep config
-# sweep_configuration = {
-#     "method": "grid",
-#     "name": "sweep",
-#     "metric": {"goal": "maximize", "name": "output_psnr"},
-#     "parameters": {
-#         "std_0": {"values" : [18./255.]},
-#         "std_end": {"values" : [1.8/255.]},
-#         "lamb_0": {"values" : [.3]},
-#         "stepsize" : {"values" : [1.]},
-#         "maxitr" : {"values" : [600]}
-#     },
-#     # 'num_sweeps': 20,
-# }
+# Define sweep config
+sweep_configuration = {
+    "method": "grid",
+    "name": "sweep",
+    "metric": {"goal": "maximize", "name": "output_psnr"},
+    "parameters": {
+        "lamb_0": {"values" : [3., 2., 4.]},
+        "stepsize" : {"values" : [.1, 0.05, 0.15]},
+        "maxitr" : {"values" : [600]}
+    },
+    # 'num_sweeps': 20,
+}
 
-# # Initialize sweep by passing in config.
-# sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
+# Initialize sweep by passing in config.
+sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
 
 def deblur():
 
@@ -82,7 +80,7 @@ def deblur():
             k_index_list = range(len(k_list))
 
     # # if hparams.use_wandb:
-    # wandb.init()        
+    wandb.init()        
     data = []
 
     PSNR_mean, SSIM_mean = [], []
@@ -107,30 +105,23 @@ def deblur():
             PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
             PnP_module.std_end = 1.8 / 255.
             PnP_module.stepsize = 0.1
-            if hparams.noise_level_img == 1:
-                if PnP_module.hparams.lamb == None and PnP_module.hparams.lamb_end == None:
-                    PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = 3.
-                if not(PnP_module.hparams.lamb_end == None):
-                    PnP_module.lamb = PnP_module.lamb_0 = 1.
-                    PnP_module.lamb_end = PnP_module.hparams.lamb_end
-                if PnP_module.hparams.lamb_end == None and not(PnP_module.hparams.lamb == None):
-                    PnP_module.lamb = PnP_module.lamb_0 = PnP_module.lamb_end = PnP_module.hparams.lamb
-                if PnP_module.hparams.maxitr == None:
-                    PnP_module.maxitr = 200
-                else:
-                    PnP_module.maxitr = PnP_module.hparams.maxitr
-            if hparams.noise_level_img == 10:
-                if (PnP_module.hparams.lamb == None) and (PnP_module.hparams.lamb_end == None):
-                    PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = 3.
-                if not(PnP_module.hparams.lamb_end == None):
-                    PnP_module.lamb_0 = .3
-                    PnP_module.lamb_end = PnP_module.hparams.lamb_end
-                if PnP_module.hparams.lamb_end == None and not(PnP_module.hparams.lamb == None):
-                    PnP_module.lamb_0 = PnP_module.lamb_end = PnP_module.hparams.lamb
-                if PnP_module.hparams.maxitr == None:
-                    PnP_module.maxitr = 600
-                else:
-                    PnP_module.maxitr = PnP_module.hparams.maxitr
+            if PnP_module.hparams.lamb == None and PnP_module.hparams.lamb_end == None:
+                PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = 3.
+            if not(PnP_module.hparams.lamb_end == None):
+                PnP_module.lamb = PnP_module.lamb_0 = 1.
+                PnP_module.lamb_end = PnP_module.hparams.lamb_end
+            if PnP_module.hparams.lamb_end == None and not(PnP_module.hparams.lamb == None):
+                PnP_module.lamb = PnP_module.lamb_0 = PnP_module.lamb_end = PnP_module.hparams.lamb
+            if PnP_module.hparams.maxitr == None:
+                PnP_module.maxitr = 600
+            else:
+                PnP_module.maxitr = PnP_module.hparams.maxitr
+        
+        PnP_module.lamb = wandb.config.lamb_0
+        PnP_module.lamb_0 = wandb.config.lamb_0
+        PnP_module.lamb_end = wandb.config.lamb_0
+        PnP_module.stepsize = wandb.config.stepsize
+        PnP_module.maxitr = wandb.config.maxitr
 
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
             # exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)
@@ -176,13 +167,6 @@ def deblur():
             blur_im += noise
             blur_im =  np.float32(blur_im)
             init_im = blur_im
-
-            # std_0 = wandb.config.std_0
-            # std_end = wandb.config.std_end
-            # lamb_0 = wandb.config.lamb_0
-            # lamb_end = wandb.config.lamb_0
-            # stepsize = wandb.config.stepsize
-            # maxitr = wandb.config.maxitr
 
             # PnP restoration
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
@@ -272,19 +256,19 @@ def deblur():
 
         data.append([k_index, avg_k_psnr, np.mean(np.mean(n_it_list))])
     
-    # # if hparams.use_wandb:
-    #     wandb.log(
-    #         {
-    #             "std_0": std_0,
-    #             "std_end": std_end,
-    #             "lamb_0": lamb_0,
-    #             "lamb_end": lamb_end,
-    #             "stepsize": stepsize,
-    #             "maxitr": maxitr,
-    #             "output_psnr" : np.mean(np.array(psnr_list)),
-    #             "output_ssim" : np.mean(np.array(ssim_list)),
-    #         }
-    #         )
+    # if hparams.use_wandb:
+    wandb.log(
+        {
+            "std_0": std_0,
+            "std_end": std_end,
+            "lamb_0": lamb_0,
+            "lamb_end": lamb_end,
+            "stepsize": stepsize,
+            "maxitr": maxitr,
+            "output_psnr" : np.mean(np.array(psnr_list)),
+            "output_ssim" : np.mean(np.array(ssim_list)),
+        }
+        )
     
     data = np.array(data)
 
@@ -302,7 +286,7 @@ def deblur():
     return np.mean(np.array(psnr_list))
 
 # Start sweep job.
-# wandb.agent(sweep_id, function=deblur)
+wandb.agent(sweep_id, function=deblur)
 
 if __name__ == '__main__':
     deblur()
