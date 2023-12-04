@@ -207,8 +207,6 @@ def pre_calculate_prox(x, k, sf):
     FBFy = cmul(FBC, fft(STy))
     return FB, FBC, F2B, FBFy
 
-
-
 def pre_calculate_grad(x, k, sf):
     '''
     Args:

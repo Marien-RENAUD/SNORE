@@ -108,7 +108,6 @@ class PnP_restoration():
         else:
             raise ValueError('noise model not implemented')
         return x - stepsize*grad, grad
-
         
     def A(self,y):
         '''
@@ -198,7 +197,7 @@ class PnP_restoration():
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
-        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD"):
+        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "Data_GD"):
             if self.hparams.stepsize is None:
                 self.stepsize = 1 / self.lamb
             else:
@@ -325,6 +324,18 @@ class PnP_restoration():
             #     use_backtracking = self.hparams.use_backtracking
             #     early_stopping = self.hparams.early_stopping
 
+            if self.hparams.opt_alg == "Data_GD":
+                z = x_old
+                # Data-fidelity step
+                x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                y = z # output image is the output of the denoising step
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                g=torch.tensor(0).float()
+                Dg=torch.tensor(0).float()
+                f, F = self.calculate_F(x, img_tensor, g=g)
+
             if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
                 # Gradient of the regularization term
                 _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
@@ -341,32 +352,34 @@ class PnP_restoration():
                 # Calculate Objective
                 f, F = self.calculate_F(x, img_tensor, g=g)
 
+                
             if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
                 x_old = x
                 if i % 50 == 0 and i < self.maxitr//2:
-                    std_i =  self.std_0 * (1 - i / (self.maxitr//2)) + self.std_end * (i / (self.maxitr//2))
-                    # std_i = std
-                    lamb_i = self.lamb_0 * (1 - i / (self.maxitr//2)) + self.lamb_end * (i / (self.maxitr//2))
-                    # lamb_i = lamb
-                if i >= self.hparams.maxitr//2:
-                    std_i = self.std_end
-                    lamb_i = self.lamb_end
+                    self.std =  self.std_0 * (1 - i / (self.maxitr//2)) + self.std_end * (i / (self.maxitr//2))
+                    self.lamb = self.lamb_0 * (1 - i / (self.maxitr//2)) + self.lamb_end * (i / (self.maxitr//2))
+                if i >= self.maxitr//2:
+                    self.std = self.std_end
+                    self.lamb = self.lamb_end
 
                 # Regularization term
-                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = std_i*torch.ones(*x_old.size()).to(self.device))
+                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
                 x_old_noise = x_old + noise
-                _,g,Dg = self.denoise(x_old_noise, std_i)
+                _,g,Dg = self.denoise(x_old_noise, self.std)
                 # Total-Gradient step
-                z = x_old - self.stepsize * lamb_i * Dg 
+                z = x_old - self.stepsize * self.lamb * Dg 
                 if self.hparams.opt_alg == "Average_PnP":
                     x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                 if self.hparams.opt_alg == "Average_PnP_Prox":
                     x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
+                # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
+                
                 # Hard constraint
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
                 # Calculate Objective
-                f, F = self.calculate_F(x, img_tensor, lamb_i, g=g)
+                f, F = self.calculate_F(x, img_tensor, g=g)
 
                 y = x # output image is the output of the denoising step
                 z = x # To be modified, for no errors in the followinf code            
@@ -381,6 +394,9 @@ class PnP_restoration():
                     print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
                 else :
                     self.backtracking_check = True
+                # if (abs(self.stepsize) < 1e-7):
+                #     print(f'Convergence reached at iteration {i}')
+                #     break
 
             if self.backtracking_check : # if the backtracking condition is satisfied
                 # Logging
@@ -411,7 +427,7 @@ class PnP_restoration():
                 # check decrease of data_fidelity 
                 if self.hparams.early_stopping : 
                     if self.hparams.crit_conv == 'cost':
-                        if abs(diff_F)/abs(F) < self.hparams.thres_conv:
+                        if (abs(diff_F)/abs(F) < self.hparams.thres_conv):
                             print(f'Convergence reached at iteration {i}')
                             break
                     elif self.hparams.crit_conv == 'residual':
@@ -604,5 +620,5 @@ class PnP_restoration():
         parser.add_argument('--weight_Dg', type=float, default=1.)
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
-        parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Average_PnP_Prox', 'PnP_Prox', 'PnP_GD', 'PnP_AGD', 'PnP_SGD'], help='Specify optimization algorithm')
+        parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'PnP_GD', 'PnP_AGD', 'PnP_SGD'], help='Specify optimization algorithm')
         return parser
