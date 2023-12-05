@@ -16,21 +16,21 @@ from brisque import BRISQUE
 loss_lpips = LPIPS(net='alex', version='0.1')
 brisque = BRISQUE(url=False)
 
-# Define sweep config
-sweep_configuration = {
-    "method": "grid",
-    "name": "sweep",
-    "metric": {"goal": "maximize", "name": "output_psnr"},
-    "parameters": {
-        "lamb_0": {"values" : [2., 1.]},
-        "stepsize" : {"values" : [0.15, 0.2]},
-        "maxitr" : {"values" : [600]}
-    },
-    # 'num_sweeps': 20,
-}
+# # Define sweep config
+# sweep_configuration = {
+#     "method": "grid",
+#     "name": "sweep",
+#     "metric": {"goal": "maximize", "name": "output_psnr"},
+#     "parameters": {
+#         "lamb_0": {"values" : [2., 1., 0.5, 3.]},
+#         "stepsize" : {"values" : [0.15, 0.1, 0.2]},
+#         "maxitr" : {"values" : [600]}
+#     },
+#     # 'num_sweeps': 20,
+# }
 
-# # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
+# # # # Initialize sweep by passing in config.
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
 
 def deblur():
 
@@ -214,14 +214,12 @@ def deblur():
                 imsave(os.path.join(save_im_path, 'img_' + str(i) + '_init.png'), single2uint(rescale(init_im)))
                 print('output image saved at ', os.path.join(save_im_path, 'img_' + str(i) + '_deblur.png'))
                 
-                # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
-                # print(save_mov_path)
-                # writer = imageio.get_writer(save_mov_path, fps = 100)
-                # for im_ in x_list:
-                #     im_int = single2uint(rescale(im_))
-                #     print(im_int)
-                #     writer.append_data(im_int)
-                # # writer.close()
+                save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
+                writer = imageio.v2.get_writer(save_mov_path, fps = 100)
+                for im_ in x_list:
+                    im_int = single2uint(rescale(im_))
+                    writer.append_data(im_int)
+                writer.close()
                 # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
                 # # imageio.mimsave(save_mov_path, x_list, fps=100)
                 # with imageio.get_writer(save_mov_path) as writer:
@@ -232,6 +230,7 @@ def deblur():
                 input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
                 dict = {
                         'GT' : input_im,
+                        'BRISQUE_GT' : brisque.score(input_im),
                         'Deblur' : deblur_im,
                         'Blur' : blur_im,
                         'PSNR_blur' : psnr(input_im, blur_im),
@@ -297,8 +296,8 @@ def deblur():
     
     return np.mean(np.array(psnr_list))
 
-# Start sweep job.
-wandb.agent(sweep_id, function=deblur)
+# # Start sweep job.
+# wandb.agent(sweep_id, function=deblur)
 
 if __name__ == '__main__':
     deblur()

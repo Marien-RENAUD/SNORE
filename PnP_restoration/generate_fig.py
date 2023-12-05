@@ -62,7 +62,6 @@ import imageio
 # fig.savefig(path_result+'/All_results.png')
 # plt.show()
 
-
 path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set1c/Average_PnP_k_0/noise_10.0"
 
 # name_list = ["Average_kernel_0","kernel_0"]
