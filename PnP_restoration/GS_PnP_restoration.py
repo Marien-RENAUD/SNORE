@@ -632,4 +632,6 @@ class PnP_restoration():
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
         parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'PnP_GD', 'PnP_AGD', 'PnP_SGD'], help='Specify optimization algorithm')
+        parser.add_argument('--save_video', dest='save_video', action='store_true')
+        parser.set_defaults(save_video=False)
         return parser

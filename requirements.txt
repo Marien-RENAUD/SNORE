@@ -10,3 +10,6 @@ torchmetrics==0.11.4
 torchvision==0.15.2
 wandb==0.15.4
 scikit-image==0.22.0
+gpustat
+lpips
+brisque

@@ -218,19 +218,14 @@ def deblur():
                 imsave(os.path.join(save_im_path, 'img_' + str(i) + '_init.png'), single2uint(rescale(init_im)))
                 print('output image saved at ', os.path.join(save_im_path, 'img_' + str(i) + '_deblur.png'))
                 
-                # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
-                # writer = imageio.v2.get_writer(save_mov_path, fps = 100)
-                # for im_ in x_list:
-                #     im_int = single2uint(rescale(im_))
-                #     writer.append_data(im_int)
-                # writer.close()
-
-
-                # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
-                # # imageio.mimsave(save_mov_path, x_list, fps=100)
-                # with imageio.get_writer(save_mov_path) as writer:
-                #     for im in x_list:
-                #         writer.append_data(im)
+                if hparams.save_video:
+                    save_mov_path = os.path.join(save_im_path, "samples_video")
+                    fps = 50
+                    duration = int(1000 * 1 / fps)
+                    im_list = []
+                    for x in x_list:
+                        im_list.append(single2uint(rescale(x)))
+                    imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
 
                 #save the result of the experiment
                 input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
