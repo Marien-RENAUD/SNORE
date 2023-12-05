@@ -13,7 +13,7 @@ class DataModule(pl.LightningDataModule):
         self.params = params
         if not self.params.test_resize :
             self.params.batch_size_test = 1
-        self.params.train_dataset_path = os.path.join(self.params.dataset_path,'DRUNET')
+        self.params.train_dataset_path = os.path.join(self.params.dataset_path,'SAR_train')
         self.params.test_dataset_path = os.path.join(self.params.dataset_path,self.params.dataset_name)
 
         if self.params.grayscale :  

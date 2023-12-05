@@ -195,6 +195,9 @@ class PnP_restoration():
         '''
 
         self.sf = sf
+        if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+            self.hparams.use_backtracking = False
+
         if extract_results:
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
 
@@ -363,7 +366,6 @@ class PnP_restoration():
                 if i >= self.maxitr//2:
                     self.std = self.std_end
                     self.lamb = self.lamb_end
-
                 # Regularization term
                 g_mean = torch.tensor([0]).to(self.device).float()
                 Dg_mean = torch.zeros(*x_old.size()).to(self.device)
@@ -382,7 +384,6 @@ class PnP_restoration():
                     x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
                 # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
                 # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
-                
                 # Hard constraint
                 if self.hparams.use_hard_constraint:
                     x = torch.clamp(x,0,1)
@@ -390,7 +391,7 @@ class PnP_restoration():
                 f, F = self.calculate_F(x, img_tensor, g=g)
 
                 y = x # output image is the output of the denoising step
-                z = x # To be modified, for no errors in the followinf code            
+                z = x # To be modified, for no errors in the followinf code       
 
             # Backtracking
             if self.hparams.use_backtracking :

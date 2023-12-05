@@ -147,6 +147,10 @@ def deblur():
                 exp_out_path = os.path.join(exp_out_path, "lamb_"+str(PnP_module.hparams.lamb))
                 if not os.path.exists(exp_out_path):
                     os.mkdir(exp_out_path)
+            if PnP_module.hparams.sigma_denoiser != None:
+                exp_out_path = os.path.join(exp_out_path, "sigma_denoiser_"+str(PnP_module.hparams.sigma_denoiser))
+                if not os.path.exists(exp_out_path):
+                    os.mkdir(exp_out_path)
             if PnP_module.hparams.no_data_term == True:
                 exp_out_path = os.path.join(exp_out_path, "no_data_term")
                 if not os.path.exists(exp_out_path):
@@ -214,12 +218,14 @@ def deblur():
                 imsave(os.path.join(save_im_path, 'img_' + str(i) + '_init.png'), single2uint(rescale(init_im)))
                 print('output image saved at ', os.path.join(save_im_path, 'img_' + str(i) + '_deblur.png'))
                 
-                save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
-                writer = imageio.v2.get_writer(save_mov_path, fps = 100)
-                for im_ in x_list:
-                    im_int = single2uint(rescale(im_))
-                    writer.append_data(im_int)
-                writer.close()
+                # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
+                # writer = imageio.v2.get_writer(save_mov_path, fps = 100)
+                # for im_ in x_list:
+                #     im_int = single2uint(rescale(im_))
+                #     writer.append_data(im_int)
+                # writer.close()
+
+
                 # save_mov_path = os.path.join(save_im_path, "samples_video_AveragePnP__PSNR={:.2f}_SSIM={:.2f}.mp4".format(psnr(input_im, blur_im) ,ssim(input_im, blur_im, data_range = 1, channel_axis = 2)) )
                 # # imageio.mimsave(save_mov_path, x_list, fps=100)
                 # with imageio.get_writer(save_mov_path) as writer:
