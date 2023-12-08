@@ -197,9 +197,10 @@ class PnP_restoration():
         self.sf = sf
         if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
             self.hparams.use_backtracking = False
+            self.hparams.early_stopping = False
 
         if extract_results:
-            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], []
+            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
         if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "Data_GD"):
@@ -314,142 +315,151 @@ class PnP_restoration():
                 i += 1
             y = x
 
-        while self.hparams.opt_alg != "PnP_SGD" and i < self.maxitr:
+        if self.hparams.opt_alg != "PnP_SGD":
+            for i in tqdm(range(self.maxitr)):
 
-            F_old = F
-            x_old = x
-            
-            # # The 50 first steps are special for inpainting
-            # if self.hparams.inpainting_init and i < self.hparams.n_init:
-            #     self.sigma_denoiser = 50
-            #     use_backtracking = False
-            #     early_stopping = False
-            # else :
-            #     self.sigma_denoiser = self.hparams.sigma_denoiser
-            #     use_backtracking = self.hparams.use_backtracking
-            #     early_stopping = self.hparams.early_stopping
-
-            if self.hparams.opt_alg == "Data_GD":
-                z = x_old
-                # Data-fidelity step
-                x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                y = z # output image is the output of the denoising step
-                if self.hparams.use_hard_constraint:
-                    x = torch.clamp(x,0,1)
-                # Calculate Objective
-                g=torch.tensor(0).float()
-                Dg=torch.tensor(0).float()
-                f, F = self.calculate_F(x, img_tensor, g=g)
-
-            if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
-                # Gradient of the regularization term
-                _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
-                # Gradient step
-                z = x_old - self.stepsize * self.lamb * Dg
-                # Data-fidelity step
-                if self.hparams.opt_alg == "PnP_Prox":
-                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                if self.hparams.opt_alg == "PnP_GD":
-                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
-                y = z # output image is the output of the denoising step
-                if self.hparams.use_hard_constraint:
-                    x = torch.clamp(x,0,1)
-                # Calculate Objective
-                f, F = self.calculate_F(x, img_tensor, g=g)
-
-                
-            if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+                F_old = F
                 x_old = x
-                if i % (self.maxitr//12) == 0 and i < self.maxitr//2:
-                    self.std =  self.std_0 * (1 - i / (self.maxitr//2)) + self.std_end * (i / (self.maxitr//2))
-                    self.lamb = self.lamb_0 * (1 - i / (self.maxitr//2)) + self.lamb_end * (i / (self.maxitr//2))
-                if i >= self.maxitr//2:
-                    self.std = self.std_end
-                    self.lamb = self.lamb_end
-                # Regularization term
-                g_mean = torch.tensor([0]).to(self.device).float()
-                Dg_mean = torch.zeros(*x_old.size()).to(self.device)
-                for _ in range(self.hparams.num_noise):
-                    noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
-                    x_old_noise = x_old + noise
-                    _,g,Dg = self.denoise(x_old_noise, self.std)
-                    g_mean += g
-                    Dg_mean += Dg
-                g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
-                # Total-Gradient step
-                z = x_old - self.stepsize * self.lamb * Dg 
-                if self.hparams.opt_alg == "Average_PnP":
-                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
-                if self.hparams.opt_alg == "Average_PnP_Prox":
+                
+                # # The 50 first steps are special for inpainting
+                # if self.hparams.inpainting_init and i < self.hparams.n_init:
+                #     self.sigma_denoiser = 50
+                #     use_backtracking = False
+                #     early_stopping = False
+                # else :
+                #     self.sigma_denoiser = self.hparams.sigma_denoiser
+                #     use_backtracking = self.hparams.use_backtracking
+                #     early_stopping = self.hparams.early_stopping
+
+                if self.hparams.opt_alg == "Data_GD":
+                    z = x_old
+                    # Data-fidelity step
                     x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
-                # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
-                # Hard constraint
-                if self.hparams.use_hard_constraint:
-                    x = torch.clamp(x,0,1)
-                # Calculate Objective
-                f, F = self.calculate_F(x, img_tensor, g=g)
+                    y = z # output image is the output of the denoising step
+                    if self.hparams.use_hard_constraint:
+                        x = torch.clamp(x,0,1)
+                    # Calculate Objective
+                    g=torch.tensor(0).float()
+                    Dg=torch.tensor(0).float()
+                    f, F = self.calculate_F(x, img_tensor, g=g)
 
-                y = x # output image is the output of the denoising step
-                z = x # To be modified, for no errors in the followinf code       
+                if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
+                    # Gradient of the regularization term
+                    _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
+                    # Gradient step
+                    z = x_old - self.stepsize * self.lamb * Dg
+                    # Data-fidelity step
+                    if self.hparams.opt_alg == "PnP_Prox":
+                        x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                    if self.hparams.opt_alg == "PnP_GD":
+                        x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                    y = z # output image is the output of the denoising step
+                    if self.hparams.use_hard_constraint:
+                        x = torch.clamp(x,0,1)
+                    # Calculate Objective
+                    f, F = self.calculate_F(x, img_tensor, g=g)
 
-            # Backtracking
-            if self.hparams.use_backtracking :
-                diff_x = (torch.norm(x - x_old, p=2) ** 2)
-                diff_F = F_old - F
-                if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
-                    self.stepsize = self.hparams.eta_backtracking * self.stepsize
-                    self.backtracking_check = False
-                    print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
-                else :
-                    self.backtracking_check = True
-                # if (abs(self.stepsize) < 1e-7):
-                #     print(f'Convergence reached at iteration {i}')
-                #     break
+                    
+                if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+                    x_old = x
+                    num_itr_each_ann = (self.maxitr - 300) // self.hparams.annealing_number
+                    if i % num_itr_each_ann == 0 and i < self.maxitr - 300:
+                        self.std =  self.std_0 * (1 - i / (self.maxitr - 300)) + self.std_end * (i / (self.maxitr - 300))
+                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - 300)) + self.lamb_end * (i / (self.maxitr - 300))
+                    if i >= self.maxitr - 300:
+                        self.std = self.std_end
+                        self.lamb = self.lamb_end
+                    # if i >= 3*self.maxitr//4:
+                    #     self.stepsize = self.hparams.stepsize / i**0.8
+                    # Regularization term
+                    g_mean = torch.tensor([0]).to(self.device).float()
+                    Dg_mean = torch.zeros(*x_old.size()).to(self.device)
+                    for _ in range(self.hparams.num_noise):
+                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
+                        x_old_noise = x_old + noise
+                        _,g,Dg = self.denoise(x_old_noise, self.std)
+                        g_mean += g
+                        Dg_mean += Dg
+                    g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
+                    # Total-Gradient step
+                    z = x_old - self.stepsize * self.lamb * Dg 
+                    if self.hparams.opt_alg == "Average_PnP":
+                        x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                    if self.hparams.opt_alg == "Average_PnP_Prox":
+                        x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                    # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
+                    # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
+                    # Hard constraint
+                    if self.hparams.use_hard_constraint:
+                        x = torch.clamp(x,0,1)
+                    # Calculate Objective
+                    f, F = self.calculate_F(x, img_tensor, g=g)
 
-            if self.backtracking_check : # if the backtracking condition is satisfied
-                # Logging
-                if extract_results:
-                    out_z = tensor2array(z.cpu())
-                    out_x = tensor2array(x.cpu())
-                    current_z_psnr = psnr(clean_img, out_z)
-                    current_x_psnr = psnr(clean_img, out_x)
-                    if self.hparams.print_each_step:
-                        print('iteration : ', i)
-                        print('current z PSNR : ', current_z_psnr)
-                        print('current x PSNR : ', current_x_psnr)
-                        print('current F : ', F)
-                    x_list.append(out_x)
-                    z_list.append(out_z)
-                    g_list.append(g.cpu().item())
-                    Dg_list.append(torch.norm(Dg).cpu().item())
-                    psnr_tab.append(current_z_psnr)
-                    current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
-                    ssim_tab.append(current_z_ssim)
-                    clean_img_tensor, out_z_tensor = array2tensor(clean_img).float(), array2tensor(out_z).float()
-                    if self.hparams.lpips:
-                        current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
-                        lpips_tab.append(current_z_lpips)
-                    F_list.append(F)
-                    f_list.append(f)
+                    y = x # output image is the output of the denoising step
+                    z = x # To be modified, for no errors in the followinf code       
 
-                # check decrease of data_fidelity 
-                if self.hparams.early_stopping : 
-                    if self.hparams.crit_conv == 'cost':
-                        if (abs(diff_F)/abs(F) < self.hparams.thres_conv):
-                            print(f'Convergence reached at iteration {i}')
-                            break
-                    elif self.hparams.crit_conv == 'residual':
-                        diff_x = torch.norm(x - x_old, p=2)
-                        if diff_x/torch.norm(x) < self.hparams.thres_conv:
-                            print(f'Convergence reached at iteration {i}')
-                            break
+                # Backtracking
+                if self.hparams.use_backtracking :
+                    diff_x = (torch.norm(x - x_old, p=2) ** 2)
+                    diff_F = F_old - F
+                    if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
+                        self.stepsize = self.hparams.eta_backtracking * self.stepsize
+                        self.backtracking_check = False
+                        print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
+                    else :
+                        self.backtracking_check = True
+                    # if (abs(self.stepsize) < 1e-7):
+                    #     print(f'Convergence reached at iteration {i}')
+                    #     break
 
-                i += 1 # next iteration
+                if self.backtracking_check : # if the backtracking condition is satisfied
+                    # Logging
+                    if extract_results:
+                        out_z = tensor2array(z.cpu())
+                        out_x = tensor2array(x.cpu())
+                        current_z_psnr = psnr(clean_img, out_z)
+                        current_x_psnr = psnr(clean_img, out_x)
+                        if self.hparams.print_each_step:
+                            print('iteration : ', i)
+                            print('current z PSNR : ', current_z_psnr)
+                            print('current x PSNR : ', current_x_psnr)
+                            print('current F : ', F)
+                        x_list.append(out_x)
+                        z_list.append(out_z)
+                        g_list.append(g.cpu().item())
+                        Dg_list.append(torch.norm(Dg).cpu().item())
+                        psnr_tab.append(current_z_psnr)
+                        current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
+                        ssim_tab.append(current_z_ssim)
+                        brisque_tab.append(brisque.score(out_z))
+                        clean_img_tensor, out_z_tensor = array2tensor(clean_img).float(), array2tensor(out_z).float()
+                        if self.hparams.lpips:
+                            current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
+                            lpips_tab.append(current_z_lpips)
+                        F_list.append(F)
+                        f_list.append(f)
 
-            else : # if the backtracking condition is not satisfied
-                x = x_old
-                F = F_old
+                    # check decrease of data_fidelity 
+                    if self.hparams.early_stopping : 
+                        if self.hparams.crit_conv == 'cost':
+                            if (abs(diff_F)/abs(F) < self.hparams.thres_conv):
+                                print(f'Convergence reached at iteration {i}')
+                                break
+                        elif self.hparams.crit_conv == 'residual':
+                            diff_x = torch.norm(x - x_old, p=2)
+                            if diff_x/torch.norm(x) < self.hparams.thres_conv:
+                                print(f'Convergence reached at iteration {i}')
+                                break
+
+                    # i += 1 # next iteration
+
+                else : # if the backtracking condition is not satisfied
+                    x = x_old
+                    F = F_old
+
+        if self.hparams.opt_alg == "PnP_GD":#a last denoising
+            Dy,_,_ = self.denoise(y, self.sigma_denoiser)
+            y = Dy
 
         output_img = tensor2array(y.cpu())
         output_psnr = psnr(clean_img, output_img)
@@ -459,7 +469,7 @@ class PnP_restoration():
         output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
 
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
         else:
             return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i
 
@@ -469,6 +479,7 @@ class PnP_restoration():
         self.conv_F = []
         self.PSNR = []
         self.SSIM = []
+        self.BRISQUE = []
         self.LPIPS = []
         self.g = []
         self.Dg = []
@@ -478,14 +489,14 @@ class PnP_restoration():
         self.lip_D = []
         self.lip_Dg = []
 
-    def update_curves(self, x_list, psnr_tab, ssim_tab, lpips_tab, Dg_list, g_list, F_list, f_list):
-
+    def update_curves(self, x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list):
         self.F.append(F_list)
         self.f.append(f_list)
         self.g.append(g_list)
         self.Dg.append(Dg_list)
         self.PSNR.append(psnr_tab)
         self.SSIM.append(ssim_tab)
+        self.BRISQUE.append(brisque_tab)
         self.LPIPS.append(lpips_tab)
         self.conv.append(np.array([(np.linalg.norm(x_list[k + 1] - x_list[k]) ** 2) for k in range(len(x_list) - 1)]) / np.sum(np.abs(x_list[0]) ** 2))
         self.lip_algo.append(np.sqrt(np.array([np.sum(np.abs(x_list[k + 1] - x_list[k]) ** 2) for k in range(1, len(x_list) - 1)]) / np.array([np.sum(np.abs(x_list[k] - x_list[k - 1]) ** 2) for k in range(1, len(x_list[:-1]))])))
@@ -513,12 +524,21 @@ class PnP_restoration():
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
+        for i in range(len(self.g)):
+            plt.plot(self.g[i][self.maxitr//2+1:], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'g_end.png'), bbox_inches="tight")
+
+        plt.figure(2)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
         for i in range(len(self.PSNR)):
             plt.plot(self.PSNR[i], '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'PSNR.png'),bbox_inches="tight")
 
-        plt.figure(2)
+        plt.figure(3)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -527,7 +547,7 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'SSIM.png'),bbox_inches="tight")
 
-        plt.figure(3)
+        plt.figure(4)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -536,7 +556,7 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'LPIPS.png'),bbox_inches="tight")
 
-        plt.figure(4)
+        plt.figure(5)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -545,7 +565,17 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'F.png'), bbox_inches="tight")
 
-        plt.figure(5)
+        plt.figure(6)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        
+        for i in range(len(self.F)):
+            plt.plot(self.F[i][self.maxitr//2+1:], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'F_end.png'), bbox_inches="tight")
+
+        plt.figure(7)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -554,9 +584,18 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'f.png'), bbox_inches="tight")
 
+        plt.figure(8)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        for i in range(len(self.f)):
+            plt.plot(self.f[i][self.maxitr//2+1:], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'f_end.png'), bbox_inches="tight")
+
         # conv_DPIR = np.load('conv_DPIR2.npy')
         conv_rate = self.conv[0][0]*np.array([(1/k) for k in range(1,len(self.conv[0]))])
-        plt.figure(6)
+        plt.figure(9)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -568,7 +607,7 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'conv_log.png'), bbox_inches="tight")
 
-        plt.figure(7)
+        plt.figure(10)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -576,6 +615,15 @@ class PnP_restoration():
             plt.plot(self.lip_algo[i],'-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'lip_algo.png'))
+
+        plt.figure(11)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        for i in range(len(self.BRISQUE)):
+            plt.plot(self.BRISQUE[i], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'BRISQUE.png'),bbox_inches="tight")
 
 
     def add_specific_args(parent_parser):
@@ -594,6 +642,7 @@ class PnP_restoration():
         parser.add_argument('--lamb_0', type=float)
         parser.add_argument('--lamb_end', type=float)
         parser.add_argument('--num_noise', type=int, default=1)
+        parser.add_argument('--annealing_number', type=int, default=16)
         parser.add_argument('--sigma_denoiser', type=float)
         parser.add_argument('--lpips', dest='lpips', action='store_true')
         parser.set_defaults(lpips=False)
@@ -610,6 +659,8 @@ class PnP_restoration():
         parser.set_defaults(extract_curves=False)
         parser.add_argument('--extract_images', dest='extract_images', action='store_true')
         parser.set_defaults(extract_images=False)
+        parser.add_argument('--save_video', dest='save_video', action='store_true')
+        parser.set_defaults(save_video=False)
         parser.add_argument('--print_each_step', dest='print_each_step', action='store_true')
         parser.set_defaults(print_each_step=False)
         parser.add_argument('--no_data_term', dest='no_data_term', action='store_true')
@@ -632,6 +683,4 @@ class PnP_restoration():
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
         parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'PnP_GD', 'PnP_AGD', 'PnP_SGD'], help='Specify optimization algorithm')
-        parser.add_argument('--save_video', dest='save_video', action='store_true')
-        parser.set_defaults(save_video=False)
         return parser

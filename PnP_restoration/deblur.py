@@ -22,14 +22,14 @@ brisque = BRISQUE(url=False)
 #     "name": "sweep",
 #     "metric": {"goal": "maximize", "name": "output_psnr"},
 #     "parameters": {
-#         "lamb_0": {"values" : [2., 1., 0.5, 3.]},
-#         "stepsize" : {"values" : [0.15, 0.1, 0.2]},
+#         "lamb_0": {"values" : [0.1]},
+#         "lamb_end": {"values" : [3.]},
+#         "stepsize" : {"values" : [0.1, 0.05, 0.01]},
 #         "maxitr" : {"values" : [600]}
 #     },
-#     # 'num_sweeps': 20,
 # }
 
-# # # # Initialize sweep by passing in config.
+# # # # # Initialize sweep by passing in config.
 # sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
 
 def deblur():
@@ -97,68 +97,80 @@ def deblur():
         if hparams.extract_curves:
             PnP_module.initialize_curves()
 
-        PnP_module.lamb, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.maxitr, PnP_module.std_0, PnP_module.std_end, PnP_module.stepsize = None, None, None, None, None, None, None
+        PnP_module.lamb, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.maxitr, PnP_module.std_0, PnP_module.std_end, PnP_module.stepsize = PnP_module.hparams.lamb, PnP_module.hparams.lamb_0, PnP_module.hparams.lamb_end, PnP_module.hparams.maxitr, PnP_module.hparams.std_0, PnP_module.hparams.std_end, PnP_module.hparams.stepsize
 
         if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD' or PnP_module.hparams.opt_alg == 'Data_GD':
             PnP_module.lamb, PnP_module.sigma_denoiser, PnP_module.maxitr, PnP_module.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
             print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(PnP_module.hparams.noise_level_img, PnP_module.sigma_denoiser, PnP_module.lamb))
 
         if PnP_module.hparams.opt_alg == 'Average_PnP' or PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
-            PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
-            PnP_module.std_end = 1.8 / 255.
-            PnP_module.stepsize = 0.1
-            if PnP_module.hparams.lamb == None and PnP_module.hparams.lamb_end == None:
-                PnP_module.lamb = PnP_module.lamb_end = PnP_module.lamb_0 = 3.
-            if not(PnP_module.hparams.lamb_end == None):
-                PnP_module.lamb = PnP_module.lamb_0 = 1.
-                PnP_module.lamb_end = PnP_module.hparams.lamb_end
-            if PnP_module.hparams.lamb_end == None and not(PnP_module.hparams.lamb == None):
-                PnP_module.lamb = PnP_module.lamb_0 = PnP_module.lamb_end = PnP_module.hparams.lamb
-            if PnP_module.hparams.maxitr == None:
-                PnP_module.maxitr = 600
-            else:
-                PnP_module.maxitr = PnP_module.hparams.maxitr
+            if PnP_module.std_0 == None:
+                PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
+            if PnP_module.std_end == None:
+                PnP_module.std_end = 1.8 / 255.
+            if PnP_module.stepsize == None:
+                PnP_module.stepsize = 0.1
+            if PnP_module.lamb_end == None:
+                PnP_module.lamb_end = 3.0
+            if PnP_module.lamb_0 == None:
+                PnP_module.lamb_0 = 0.1
+            if PnP_module.maxitr == None:
+                PnP_module.maxitr = 1100
         
         if hparams.use_wandb:
-            PnP_module.lamb = wandb.config.lamb_0
             PnP_module.lamb_0 = wandb.config.lamb_0
-            PnP_module.lamb_end = wandb.config.lamb_0
+            PnP_module.lamb_end = wandb.config.lamb_end
             PnP_module.stepsize = wandb.config.stepsize
             PnP_module.maxitr = wandb.config.maxitr
 
-        if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-            # exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)
-            exp_out_path = "../../Result_Average_PnP"
+        #create the folder to save experimental results
+        exp_out_path = "../../Result_Average_PnP"
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+        exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+        exp_out_path = os.path.join(exp_out_path, hparams.dataset_name)
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+        exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg+"_k_"+str(k_index))
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+        exp_out_path = os.path.join(exp_out_path, "noise_"+str(PnP_module.hparams.noise_level_img))
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+        if PnP_module.hparams.maxitr != None:
+            exp_out_path = os.path.join(exp_out_path, "maxitr_"+str(PnP_module.maxitr))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
-            exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)
+        if PnP_module.hparams.stepsize != None:
+            exp_out_path = os.path.join(exp_out_path, "stepsize_"+str(PnP_module.stepsize))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
-            exp_out_path = os.path.join(exp_out_path, hparams.dataset_name)
+        if PnP_module.hparams.lamb_0 != None:
+            exp_out_path = os.path.join(exp_out_path, "lamb_0_"+str(PnP_module.hparams.lamb_0))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
-            exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg+"_k_"+str(k_index))
+        if PnP_module.hparams.lamb_end != None:
+            exp_out_path = os.path.join(exp_out_path, "lamb_end_"+str(PnP_module.hparams.lamb_end))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
-            exp_out_path = os.path.join(exp_out_path, "noise_"+str(PnP_module.hparams.noise_level_img))
+        if PnP_module.hparams.lamb != None:
+            exp_out_path = os.path.join(exp_out_path, "lamb_"+str(PnP_module.hparams.lamb))
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
-            if PnP_module.hparams.lamb != None:
-                exp_out_path = os.path.join(exp_out_path, "lamb_"+str(PnP_module.hparams.lamb))
-                if not os.path.exists(exp_out_path):
-                    os.mkdir(exp_out_path)
-            if PnP_module.hparams.sigma_denoiser != None:
-                exp_out_path = os.path.join(exp_out_path, "sigma_denoiser_"+str(PnP_module.hparams.sigma_denoiser))
-                if not os.path.exists(exp_out_path):
-                    os.mkdir(exp_out_path)
-            if PnP_module.hparams.no_data_term == True:
-                exp_out_path = os.path.join(exp_out_path, "no_data_term")
-                if not os.path.exists(exp_out_path):
-                    os.mkdir(exp_out_path)
-            if PnP_module.hparams.num_noise != 1:
-                exp_out_path = os.path.join(exp_out_path, "num_noise_"+str(PnP_module.hparams.num_noise))
-                if not os.path.exists(exp_out_path):
-                    os.mkdir(exp_out_path)
+        if PnP_module.hparams.sigma_denoiser != None:
+            exp_out_path = os.path.join(exp_out_path, "sigma_denoiser_"+str(PnP_module.hparams.sigma_denoiser))
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
+        if PnP_module.hparams.no_data_term == True:
+            exp_out_path = os.path.join(exp_out_path, "no_data_term")
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
+        if PnP_module.hparams.num_noise != 1:
+            exp_out_path = os.path.join(exp_out_path, "num_noise_"+str(PnP_module.hparams.num_noise))
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
 
         for i in range(min(len(input_paths),hparams.n_images)): # For each image
 
@@ -181,7 +193,7 @@ def deblur():
 
             # PnP restoration
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
             else :
                 deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
 
@@ -202,9 +214,10 @@ def deblur():
             brisque_list.append(output_brisque)
             n_it_list.append(n_it)
 
+
             if hparams.extract_curves:
                 # Create curves
-                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, lpips_tab, Dg_list, g_list, F_list, f_list)
+                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list)
 
             if hparams.extract_images:
                 # Save images
@@ -227,6 +240,35 @@ def deblur():
                         im_list.append(single2uint(rescale(x)))
                     imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
 
+            #save the result of the experiment
+            input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
+            dict = {
+                    'GT' : input_im,
+                    'BRISQUE_GT' : brisque.score(input_im),
+                    'Deblur' : deblur_im,
+                    'Blur' : blur_im,
+                    'PSNR_blur' : psnr(input_im, blur_im),
+                    'SSIM_blur' : ssim(input_im, blur_im, data_range = 1, channel_axis = 2),
+                    'LPIPS_blur' : loss_lpips.forward(input_im_tensor, blur_im_tensor).item(),
+                    'BRISQUE_blur' : brisque.score(blur_im),
+                    'Init' : init_im,
+                    'SSIM_output' : output_ssim,
+                    'PSNR_output' : output_psnr,
+                    'LPIPS_output' : output_lpips,
+                    'BRISQUE_output' : output_brisque,
+                    'kernel' : k,
+                    'lamb' : PnP_module.lamb,
+                    'lamb_0' : PnP_module.lamb_0,
+                    'lamb_end' : PnP_module.lamb_end,
+                    'maxitr' : PnP_module.maxitr,
+                    'std_0' : PnP_module.std_0,
+                    'std_end' : PnP_module.std_end,
+                    'stepsize' : PnP_module.stepsize,
+                    'opt_alg': PnP_module.hparams.opt_alg,
+                }
+            np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
+            
+            if not(hparams.extract_images):
                 #save the result of the experiment
                 input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
                 dict = {
@@ -297,7 +339,7 @@ def deblur():
     
     return np.mean(np.array(psnr_list))
 
-# # Start sweep job.
+# # # Start sweep job.
 # wandb.agent(sweep_id, function=deblur)
 
 if __name__ == '__main__':
