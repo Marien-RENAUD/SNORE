@@ -107,7 +107,7 @@ def deblur():
             if PnP_module.std_0 == None:
                 PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
             if PnP_module.std_end == None:
-                PnP_module.std_end = 1.8 / 255.
+                PnP_module.std_end = 1.8 / 255.#* hparams.noise_level_img 
             if PnP_module.stepsize == None:
                 PnP_module.stepsize = 0.1
             if PnP_module.lamb_end == None:
@@ -167,6 +167,10 @@ def deblur():
             exp_out_path = os.path.join(exp_out_path, "no_data_term")
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
+        if PnP_module.hparams.annealing_number != None:
+            exp_out_path = os.path.join(exp_out_path, "annealing_number_"+str(PnP_module.hparams.annealing_number))
+            if not os.path.exists(exp_out_path):
+                os.mkdir(exp_out_path)
         if PnP_module.hparams.num_noise != 1:
             exp_out_path = os.path.join(exp_out_path, "num_noise_"+str(PnP_module.hparams.num_noise))
             if not os.path.exists(exp_out_path):
@@ -189,14 +193,18 @@ def deblur():
             noise = np.random.normal(0, hparams.noise_level_img / 255., blur_im.shape)
             blur_im += noise
             blur_im =  np.float32(blur_im)
-            init_im = blur_im
+
+            if hparams.im_init != None:
+                dic = np.load(hparams.im_init, allow_pickle=True).item()
+                init_im = dic["Deblur"]
+            else:
+                init_im = blur_im
 
             # PnP restoration
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
+                deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
             else :
                 deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
-
 
             print('PSNR: {:.2f}dB'.format(output_psnr))
             print('SSIM: {:.2f}'.format(output_ssim))
@@ -214,10 +222,9 @@ def deblur():
             brisque_list.append(output_brisque)
             n_it_list.append(n_it)
 
-
             if hparams.extract_curves:
                 # Create curves
-                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list)
+                PnP_module.update_curves(x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab)
 
             if hparams.extract_images:
                 # Save images
@@ -226,13 +233,13 @@ def deblur():
                     os.mkdir(save_im_path)
                 print("test", save_im_path)
                 imsave(os.path.join(save_im_path, 'img_'+str(i)+'_input.png'), input_im_uint)
-                imsave(os.path.join(save_im_path, 'img_' + str(i) + "_deblur.png"), single2uint(rescale(deblur_im)))
-                imsave(os.path.join(save_im_path, 'img_'+str(i)+'_blur.png'), single2uint(rescale(blur_im)))
-                imsave(os.path.join(save_im_path, 'img_' + str(i) + '_init.png'), single2uint(rescale(init_im)))
+                imsave(os.path.join(save_im_path, 'img_' + str(i) + "_deblur.png"), single2uint(np.clip(deblur_im, 0, 1)))
+                imsave(os.path.join(save_im_path, 'img_'+str(i)+'_blur.png'), single2uint(np.clip(blur_im, 0, 1)))
+                imsave(os.path.join(save_im_path, 'img_' + str(i) + '_init.png'), single2uint(np.clip(init_im, 0, 1)))
                 print('output image saved at ', os.path.join(save_im_path, 'img_' + str(i) + '_deblur.png'))
                 
                 if hparams.save_video:
-                    save_mov_path = os.path.join(save_im_path, "samples_video")
+                    save_mov_path = os.path.join(save_im_path, 'img_' + str(i) +"_samples_video")
                     fps = 50
                     duration = int(1000 * 1 / fps)
                     im_list = []

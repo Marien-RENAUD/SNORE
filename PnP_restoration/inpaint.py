@@ -81,7 +81,7 @@ def inpaint():
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
             inpainted_im, _, output_psnr, output_ssim, _, x_list, z_list, Dx_list, psnr_tab, ssim_tab, Ds_list, s_list, F_list = PnP_module.restore(mask_im, mask_im, input_im, mask, extract_results=True)
         else:
-            inpainted_im, output_psnr, output_psnrY = PnP_module.restore(mask_im, input_im, mask)
+            inpainted_im, output_psnr, output_psnrY = PnP_module.restore(mask_im, mask_im, input_im, mask)
 
         print('PSNR: {:.2f}dB'.format(output_psnr))
         psnr_list.append(output_psnr)

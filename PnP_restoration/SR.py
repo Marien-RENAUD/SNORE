@@ -78,10 +78,10 @@ def SR():
             if hparams.extract_curves:
                 PnP_module.initialize_curves()
 
-            PnP_module.hparams.lamb, PnP_module.hparams.sigma_denoiser, PnP_module.hparams.maxitr, PnP_module.hparams.thres_conv = get_gaussian_noise_parameters(
-                                    hparams.noise_level_img, k_index=k_index, degradation_mode='SR')
+            PnP_module.lamb, PnP_module.sigma_denoiser, PnP_module.maxitr, PnP_module.thres_conv = get_gaussian_noise_parameters(
+                                    hparams.noise_level_img, hparams, k_index=k_index, degradation_mode='SR')
 
-            print('GS-DRUNET super-resolution with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(hparams.noise_level_img, hparams.sigma_denoiser, hparams.lamb))
+            print('GS-DRUNET super-resolution with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(PnP_module.hparams.noise_level_img, PnP_module.sigma_denoiser, PnP_module.lamb))
 
             if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
                 exp_out_path = create_out_dir(hparams.degradation_mode, hparams.dataset_name)

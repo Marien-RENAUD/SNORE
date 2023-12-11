@@ -12,7 +12,7 @@ import imageio
 path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set4c/"
 
 # name_list = ["Average_PnP_k_0/noise_10.0","PnP_Prox_k_0/noise_10.0"]
-im_name_list = ["0", "1", "2", "3"]
+im_name_list = ["0", "1"]#, "2", "3"]
 
 im_list = []
 
@@ -27,53 +27,47 @@ width = 280
 
 fig = plt.figure(figsize = (n*5, m*8))
 for i, im_name in enumerate(im_name_list):
-    # width = 280
-    # dic_PnPProx = np.load(path_result + "PnP_Prox_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
+    width = 280
+    dic_PnPProx = np.load(path_result + "PnP_Prox_k_0/noise_5.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
     # dic_PnPGD = np.load(path_result + "PnP_GD_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
-    dic_APnP = np.load(path_result + "Average_PnP_k_0/noise_10.0/maxitr_1100/lamb_0_0.1/lamb_end_3.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
-    
+    dic_APnP = np.load(path_result + "Average_PnP_k_0/noise_5.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
+    # dic_APnPProx = np.load(path_result + "Average_PnP_Prox_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
 
-#     dic_APnPProx = np.load(path_result + "Average_PnP_Prox_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
-
-#     gt = dic_PnPProx["GT"]
-#     deblur_PnPProx = (dic_PnPProx["Deblur"], dic_PnPProx["PSNR_output"], dic_PnPProx["SSIM_output"], dic_PnPProx["LPIPS_output"], dic_PnPProx["BRISQUE_output"])
-#     deblur_PnPGD = (dic_PnPGD["Deblur"], dic_PnPGD["PSNR_output"], dic_PnPGD["SSIM_output"], dic_PnPGD["LPIPS_output"], dic_PnPGD["BRISQUE_output"])
-#     blur = (dic_PnPProx["Blur"], dic_PnPProx["PSNR_blur"], dic_PnPProx["SSIM_blur"], dic_PnPProx["LPIPS_blur"], dic_PnPProx["BRISQUE_blur"])
-#     k = dic_PnPProx["kernel"]
+    gt = dic_PnPProx["GT"]
+    deblur_PnPProx = (dic_PnPProx["Deblur"], dic_PnPProx["PSNR_output"], dic_PnPProx["SSIM_output"], dic_PnPProx["LPIPS_output"], dic_PnPProx["BRISQUE_output"])
+    # deblur_PnPGD = (dic_PnPGD["Deblur"], dic_PnPGD["PSNR_output"], dic_PnPGD["SSIM_output"], dic_PnPGD["LPIPS_output"], dic_PnPGD["BRISQUE_output"])
+    blur = (dic_PnPProx["Blur"], dic_PnPProx["PSNR_blur"], dic_PnPProx["SSIM_blur"], dic_PnPProx["LPIPS_blur"], dic_PnPProx["BRISQUE_blur"])
+    k = dic_PnPProx["kernel"]
     deblur_APnP = (dic_APnP["Deblur"], dic_APnP["PSNR_output"], dic_APnP["SSIM_output"], dic_APnP["LPIPS_output"], dic_APnP["BRISQUE_output"])
-    im = deblur_APnP[0]
-    im = np.clip(im, 0, 1)
-    plt.imsave(path_result + "Average_PnP_k_0/noise_10.0/maxitr_1100/lamb_0_0.1/lamb_end_3.0/images/img_"+str(i)+"_deblur_clip.png", im)
+    # deblur_APnPProx = (dic_APnPProx["Deblur"], dic_APnPProx["PSNR_output"], dic_APnPProx["SSIM_output"], dic_APnPProx["LPIPS_output"], dic_APnPProx["BRISQUE_output"])
 
-#     deblur_APnPProx = (dic_APnPProx["Deblur"], dic_APnPProx["PSNR_output"], dic_APnPProx["SSIM_output"], dic_APnPProx["LPIPS_output"], dic_APnPProx["BRISQUE_output"])
+    ax = fig.add_subplot(m,n,1+n*i)
+    ax.imshow(gt)
+    rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+    ax.add_patch(plt.Rectangle(**rect_params))
+    text_params = {'xy': (5, 5), 'text': "PSNR/SSIM/LPIPS/BRISQUE", 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+    ax.annotate(**text_params)
+    ax.axis('off')
+    ax.set_title("Ground Truth", fontsize=21)
 
-#     ax = fig.add_subplot(m,n,1+n*i)
-#     ax.imshow(gt)
-#     rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
-#     ax.add_patch(plt.Rectangle(**rect_params))
-#     text_params = {'xy': (5, 5), 'text': "PSNR/SSIM/LPIPS/BRISQUE", 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
-#     ax.annotate(**text_params)
-#     ax.axis('off')
-#     ax.set_title("Ground Truth", fontsize=21)
+    width = 230
 
-#     width = 230
+    for j, im in enumerate([blur, deblur_PnPProx, deblur_APnP]):
+        ax = fig.add_subplot(m,n,2+j+n*i)
+        if j ==0:
+            c = 110
+            k_resize = cv2.resize(k, dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+            im[0][-k_resize.shape[0]:,:k_resize.shape[1]] = k_resize[:,:,None]*np.ones(3)[None,None,:] / np.max(k_resize)
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+        ax.set_title(name_fig_list[j], fontsize=21)
 
-#     for j, im in enumerate([blur, deblur_PnPProx, deblur_APnP]):
-#         ax = fig.add_subplot(m,n,2+j+n*i)
-#         if j ==0:
-#             c = 110
-#             k_resize = cv2.resize(k, dsize =(c,c), interpolation=cv2.INTER_CUBIC)
-#             im[0][-k_resize.shape[0]:,:k_resize.shape[1]] = k_resize[:,:,None]*np.ones(3)[None,None,:] / np.max(k_resize)
-#         ax.imshow(im[0])
-#         rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
-#         ax.add_patch(plt.Rectangle(**rect_params))
-#         text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
-#         ax.annotate(**text_params)
-#         ax.axis('off')
-#         ax.set_title(name_fig_list[j], fontsize=21)
-
-# fig.savefig(path_result+'/All_results_Annealing_GDProx.png')
-# plt.show()
+fig.savefig(path_result+'/All_results_Annealing_GDProx_noise_5.png')
+plt.show()
 
 
 

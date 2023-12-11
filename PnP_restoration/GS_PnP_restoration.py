@@ -200,7 +200,7 @@ class PnP_restoration():
             self.hparams.early_stopping = False
 
         if extract_results:
-            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list = [], [], [], [], [], [], [], [], [], [], [], [], []
+            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list, lamb_tab, std_tab = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
         if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "Data_GD"):
@@ -362,13 +362,15 @@ class PnP_restoration():
                     
                 if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
                     x_old = x
-                    num_itr_each_ann = (self.maxitr - 300) // self.hparams.annealing_number
-                    if i % num_itr_each_ann == 0 and i < self.maxitr - 300:
-                        self.std =  self.std_0 * (1 - i / (self.maxitr - 300)) + self.std_end * (i / (self.maxitr - 300))
-                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - 300)) + self.lamb_end * (i / (self.maxitr - 300))
-                    if i >= self.maxitr - 300:
+                    num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                    if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                        self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                    if i >= self.maxitr - self.hparams.last_itr:
                         self.std = self.std_end
                         self.lamb = self.lamb_end
+                    if extract_results:
+                        lamb_tab.append(self.lamb); std_tab.append(self.std)
                     # if i >= 3*self.maxitr//4:
                     #     self.stepsize = self.hparams.stepsize / i**0.8
                     # Regularization term
@@ -382,7 +384,7 @@ class PnP_restoration():
                         Dg_mean += Dg
                     g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
                     # Total-Gradient step
-                    z = x_old - self.stepsize * self.lamb * Dg 
+                    z = x_old - self.stepsize * self.lamb * Dg
                     if self.hparams.opt_alg == "Average_PnP":
                         x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                     if self.hparams.opt_alg == "Average_PnP_Prox":
@@ -469,7 +471,7 @@ class PnP_restoration():
         output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
 
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab)
         else:
             return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i
 
@@ -485,11 +487,13 @@ class PnP_restoration():
         self.Dg = []
         self.F = []
         self.f = []
+        self.lamb_tab = []
+        self.std_tab = []
         self.lip_algo = []
         self.lip_D = []
         self.lip_Dg = []
 
-    def update_curves(self, x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list):
+    def update_curves(self, x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab):
         self.F.append(F_list)
         self.f.append(f_list)
         self.g.append(g_list)
@@ -498,6 +502,8 @@ class PnP_restoration():
         self.SSIM.append(ssim_tab)
         self.BRISQUE.append(brisque_tab)
         self.LPIPS.append(lpips_tab)
+        self.lamb_tab = lamb_tab
+        self.std_tab = std_tab
         self.conv.append(np.array([(np.linalg.norm(x_list[k + 1] - x_list[k]) ** 2) for k in range(len(x_list) - 1)]) / np.sum(np.abs(x_list[0]) ** 2))
         self.lip_algo.append(np.sqrt(np.array([np.sum(np.abs(x_list[k + 1] - x_list[k]) ** 2) for k in range(1, len(x_list) - 1)]) / np.array([np.sum(np.abs(x_list[k] - x_list[k - 1]) ** 2) for k in range(1, len(x_list[:-1]))])))
 
@@ -525,7 +531,7 @@ class PnP_restoration():
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         for i in range(len(self.g)):
-            plt.plot(self.g[i][self.maxitr//2+1:], '-o')
+            plt.plot(self.g[i][-self.hparams.last_itr+1:], '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'g_end.png'), bbox_inches="tight")
 
@@ -571,7 +577,7 @@ class PnP_restoration():
         ax.spines['top'].set_visible(False)
         
         for i in range(len(self.F)):
-            plt.plot(self.F[i][self.maxitr//2+1:], '-o')
+            plt.plot(self.F[i][-self.hparams.last_itr+1:], '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'F_end.png'), bbox_inches="tight")
 
@@ -589,7 +595,7 @@ class PnP_restoration():
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         for i in range(len(self.f)):
-            plt.plot(self.f[i][self.maxitr//2+1:], '-o')
+            plt.plot(self.f[i][-self.hparams.last_itr+1:], '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'f_end.png'), bbox_inches="tight")
 
@@ -625,12 +631,29 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'BRISQUE.png'),bbox_inches="tight")
 
+        plt.figure(12)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        plt.plot(self.lamb_tab, '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'Lambda_list.png'),bbox_inches="tight")
+
+        plt.figure(13)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        plt.plot(self.std_tab, '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'Std_list.png'),bbox_inches="tight")
+
 
     def add_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--dataset_path', type=str, default='../datasets')
         parser.add_argument('--gpu_number', type=int, default=0)
         parser.add_argument('--pretrained_checkpoint', type=str,default='../GS_denoising/ckpts/GSDRUNet.ckpt')
+        parser.add_argument('--im_init', type=str)
         parser.add_argument('--noise_model', type=str,  default='gaussian')
         parser.add_argument('--dataset_name', type=str, default='set3c')
         parser.add_argument('--noise_level_img', type=float, required=True)
@@ -643,6 +666,7 @@ class PnP_restoration():
         parser.add_argument('--lamb_end', type=float)
         parser.add_argument('--num_noise', type=int, default=1)
         parser.add_argument('--annealing_number', type=int, default=16)
+        parser.add_argument('--last_itr', type=int, default=300)
         parser.add_argument('--sigma_denoiser', type=float)
         parser.add_argument('--lpips', dest='lpips', action='store_true')
         parser.set_defaults(lpips=False)
