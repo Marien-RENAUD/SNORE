@@ -60,15 +60,15 @@ if __name__ == '__main__':
     max_epochs = 1200
     
     if hparams.resume_from_checkpoint:
-        trainer = pl.Trainer(logger=tb_logger, gpus=-1, val_check_interval=hparams.val_check_interval,
+        trainer = pl.Trainer(logger=tb_logger, val_check_interval=hparams.val_check_interval,
                                 resume_from_checkpoint=hparams.pretrained_checkpoint,
                                 gradient_clip_val=hparams.gradient_clip_val,
                                 max_epochs=max_epochs, precision=32, 
-                                callbacks=[lr_monitor, checkpoint_callback],accelerator="gpu", strategy="ddp")
+                                callbacks=[lr_monitor, checkpoint_callback],accelerator="auto", strategy="ddp")
     else :
-        trainer = pl.Trainer(logger=tb_logger,gpus=-1,val_check_interval=hparams.val_check_interval,
+        trainer = pl.Trainer(logger=tb_logger,val_check_interval=hparams.val_check_interval,
                                 gradient_clip_val=hparams.gradient_clip_val,
                                 max_epochs=max_epochs, precision=32, 
-                                callbacks=[lr_monitor, checkpoint_callback], accelerator="gpu", strategy="ddp")
+                                callbacks=[lr_monitor, checkpoint_callback], accelerator="auto", strategy="ddp")
     
     trainer.fit(model)

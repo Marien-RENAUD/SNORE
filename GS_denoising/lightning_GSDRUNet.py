@@ -206,7 +206,7 @@ class GradMatch(pl.LightningModule):
 
         return batch_dict
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
 
         sigma_list = self.hparams.sigma_list_test
         for i, sigma in enumerate(sigma_list):
@@ -253,7 +253,7 @@ class GradMatch(pl.LightningModule):
         return self.validation_step(batch, batch_idx)
 
     def test_epoch_end(self, outputs):
-        return self.validation_epoch_end(outputs)
+        return self.on_validation_epoch_end(outputs)
 
     def configure_optimizers(self):
         optim_params = []

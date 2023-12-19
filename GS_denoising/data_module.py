@@ -14,7 +14,7 @@ class DataModule(pl.LightningDataModule):
         if not self.params.test_resize :
             self.params.batch_size_test = 1
         self.params.train_dataset_path = os.path.join(self.params.dataset_path,'SAR_train')
-        self.params.test_dataset_path = os.path.join(self.params.dataset_path,self.params.dataset_name)
+        self.params.test_dataset_path = os.path.join(self.params.dataset_path,'SAR_test')
 
         if self.params.grayscale :  
             self.train_transform = transforms.Compose([
@@ -60,6 +60,7 @@ class DataModule(pl.LightningDataModule):
 
 
     def train_dataloader(self):
+        print("dataset_train : ",self.dataset_train)
         return DataLoader(self.dataset_train,
                           batch_size=self.params.batch_size_train,
                           shuffle=self.params.train_shuffle,

@@ -316,6 +316,11 @@ class PnP_restoration():
             y = x
 
         if self.hparams.opt_alg != "PnP_SGD":
+            mom = torch.zeros(*x.size()).to(self.device)
+            mom_2 = torch.zeros(*x.size()).to(self.device)
+            beta_1 = 0.9
+            beta_2 = 0.999
+            eps = 1e-8
             for i in tqdm(range(self.maxitr)):
 
                 F_old = F
@@ -343,13 +348,23 @@ class PnP_restoration():
                     Dg=torch.tensor(0).float()
                     f, F = self.calculate_F(x, img_tensor, g=g)
 
-                if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD":
+                if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "APnP_Prox":
+                    if self.hparams.opt_alg == "APnP_Prox":
+                        num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                        if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                            self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                            self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                        if i >= self.maxitr - self.hparams.last_itr:
+                            self.std = self.std_end
+                            self.lamb = self.lamb_end
+                    if extract_results:
+                        lamb_tab.append(self.lamb); std_tab.append(self.std)
                     # Gradient of the regularization term
-                    _,g,Dg = self.denoise(x_old, self.sigma_denoiser)
+                    _,g,Dg = self.denoise(x_old, self.std)
                     # Gradient step
                     z = x_old - self.stepsize * self.lamb * Dg
                     # Data-fidelity step
-                    if self.hparams.opt_alg == "PnP_Prox":
+                    if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "APnP_Prox":
                         x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
                     if self.hparams.opt_alg == "PnP_GD":
                         x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
@@ -359,12 +374,18 @@ class PnP_restoration():
                     # Calculate Objective
                     f, F = self.calculate_F(x, img_tensor, g=g)
 
-                    
                 if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+                    # stepsize = self.stepsize_order * (sigma_tab / self.hparams.noise_level_img)**2
+                    # num_itr_each_ann = self.maxitr // self.hparams.annealing_number
                     x_old = x
                     num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                    # lamb_schedule = np.logspace(np.log10(self.lamb_0), np.log10(self.lamb_end), self.maxitr // num_itr_each_ann).astype(np.float32)
                     if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                        # self.std = sigma_tab[i // num_itr_each_ann]
+                        # self.stepsize = stepsize[i // num_itr_each_ann]
+
                         self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                        # self.lamb = lamb_schedule[i // num_itr_each_ann]
                         self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
                     if i >= self.maxitr - self.hparams.last_itr:
                         self.std = self.std_end
@@ -396,9 +417,45 @@ class PnP_restoration():
                         x = torch.clamp(x,0,1)
                     # Calculate Objective
                     f, F = self.calculate_F(x, img_tensor, g=g)
+                    y = x # output image is the output of the denoising step
+                    
+                
+                if self.hparams.opt_alg == "Average_PnP_Adam":
+                    x_old = x
+                    t = i + 1
+
+                    num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                    if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                        # self.std = sigma_tab[i // num_itr_each_ann]
+                        # self.stepsize = stepsize[i // num_itr_each_ann]
+                        self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                    if i >= self.maxitr - self.hparams.last_itr:
+                        self.std = self.std_end
+                        self.lamb = self.lamb_end
+                    if extract_results:
+                        lamb_tab.append(self.lamb); std_tab.append(self.std)
+                    g_mean = torch.tensor([0]).to(self.device).float()
+                    Dg_mean = torch.zeros(*x_old.size()).to(self.device)
+                    for _ in range(self.hparams.num_noise):
+                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
+                        x_old_noise = x_old + noise
+                        _,g,Dg = self.denoise(x_old_noise, self.std)
+                        g_mean += g
+                        Dg_mean += Dg
+                    g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
+                    # Adam optimizer steps
+                    Grad_total = self.data_fidelity_grad(x_old, img_tensor) + self.lamb * Dg
+                    mom = beta_1 * mom + (1 - beta_1) * Grad_total
+                    mom_2 = beta_2 * mom_2 + (1 - beta_2) * Grad_total * Grad_total
+                    mom_unbiased = mom / (1 - beta_1**t)
+                    mom_2_unbiased = mom_2 / (1 - beta_2**t)
+                    x = x_old - self.stepsize * mom_unbiased / (torch.sqrt(mom_2_unbiased) + eps)
+                    # Calculate Objective
+                    f, F = self.calculate_F(x, img_tensor, g=g)
 
                     y = x # output image is the output of the denoising step
-                    z = x # To be modified, for no errors in the followinf code       
+                    z = x # To be modified, for no errors in the followinf code
 
                 # Backtracking
                 if self.hparams.use_backtracking :
@@ -656,7 +713,7 @@ class PnP_restoration():
         parser.add_argument('--im_init', type=str)
         parser.add_argument('--noise_model', type=str,  default='gaussian')
         parser.add_argument('--dataset_name', type=str, default='set3c')
-        parser.add_argument('--noise_level_img', type=float, required=True)
+        parser.add_argument('--noise_level_img', type=float)
         parser.add_argument('--maxitr', type=int)
         parser.add_argument('--stepsize', type=float)
         parser.add_argument('--lamb', type=float)
@@ -706,5 +763,5 @@ class PnP_restoration():
         parser.add_argument('--weight_Dg', type=float, default=1.)
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
-        parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'PnP_GD', 'PnP_AGD', 'PnP_SGD'], help='Specify optimization algorithm')
+        parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Average_PnP_Adam', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'APnP_Prox', 'PnP_GD', 'PnP_SGD'], help='Specify optimization algorithm')
         return parser
