@@ -265,33 +265,43 @@ def deblur():
                             im_list.append(single2uint(rescale(x)))
                         imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
 
-                #save the result of the experiment
-                input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
-                dict = {
-                        'GT' : input_im,
-                        'BRISQUE_GT' : brisque.score(input_im),
-                        'Deblur' : deblur_im,
-                        'Blur' : blur_im,
-                        'PSNR_blur' : psnr(input_im, blur_im),
-                        'SSIM_blur' : ssim(input_im, blur_im, data_range = 1, channel_axis = 2),
-                        'LPIPS_blur' : loss_lpips.forward(input_im_tensor, blur_im_tensor).item(),
-                        'BRISQUE_blur' : brisque.score(blur_im),
-                        'Init' : init_im,
-                        'SSIM_output' : output_ssim,
-                        'PSNR_output' : output_psnr,
-                        'LPIPS_output' : output_lpips,
-                        'BRISQUE_output' : output_brisque,
-                        'kernel' : k,
-                        'lamb' : PnP_module.lamb,
-                        'lamb_0' : PnP_module.lamb_0,
-                        'lamb_end' : PnP_module.lamb_end,
-                        'maxitr' : PnP_module.maxitr,
-                        'std_0' : PnP_module.std_0,
-                        'std_end' : PnP_module.std_end,
-                        'stepsize' : PnP_module.stepsize,
-                        'opt_alg': PnP_module.hparams.opt_alg,
-                    }
-                np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
+                    #save the result of the experiment
+                    input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
+                    dict = {
+                            'GT' : input_im,
+                            'BRISQUE_GT' : brisque.score(input_im),
+                            'Deblur' : deblur_im,
+                            'Blur' : blur_im,
+                            'PSNR_blur' : psnr(input_im, blur_im),
+                            'SSIM_blur' : ssim(input_im, blur_im, data_range = 1, channel_axis = 2),
+                            'LPIPS_blur' : loss_lpips.forward(input_im_tensor, blur_im_tensor).item(),
+                            'BRISQUE_blur' : brisque.score(blur_im),
+                            'Init' : init_im,
+                            'SSIM_output' : output_ssim,
+                            'PSNR_output' : output_psnr,
+                            'LPIPS_output' : output_lpips,
+                            'BRISQUE_output' : output_brisque,
+                            'kernel' : k,
+                            'lamb' : PnP_module.lamb,
+                            'lamb_0' : PnP_module.lamb_0,
+                            'lamb_end' : PnP_module.lamb_end,
+                            'maxitr' : PnP_module.maxitr,
+                            'std_0' : PnP_module.std_0,
+                            'std_end' : PnP_module.std_end,
+                            'stepsize' : PnP_module.stepsize,
+                            'opt_alg': PnP_module.hparams.opt_alg,
+                            'psnr_tab' : psnr_tab,
+                            'ssim_tab' : ssim_tab,
+                            'brisque_tab' : brisque_tab,
+                            'lpips_tab' : lpips_tab,
+                            'Dg_list' : Dg_list,
+                            'g_list' : g_list,
+                            'F_list' : F_list,
+                            'f_list' : f_list,
+                            'lamb_tab' : lamb_tab,
+                            'std_tab' : std_tab
+                        }
+                    np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
                 
                 if not(hparams.extract_images):
                     #save the result of the experiment
