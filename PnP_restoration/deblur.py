@@ -153,6 +153,10 @@ def deblur():
                 exp_out_path = os.path.join(exp_out_path, "maxitr_"+str(PnP_module.maxitr))
                 if not os.path.exists(exp_out_path):
                     os.mkdir(exp_out_path)
+            if PnP_module.hparams.seed != None:
+                exp_out_path = os.path.join(exp_out_path, "seed_"+str(PnP_module.hparams.seed))
+                if not os.path.exists(exp_out_path):
+                    os.mkdir(exp_out_path)
             if PnP_module.hparams.stepsize != None:
                 exp_out_path = os.path.join(exp_out_path, "stepsize_"+str(PnP_module.stepsize))
                 if not os.path.exists(exp_out_path):
@@ -220,14 +224,18 @@ def deblur():
 
                 # PnP restoration
                 if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-                    deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
+                    deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, n_it, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab = PnP_module.restore(blur_im.copy(),init_im.copy(),input_im.copy(),k, extract_results=True)
                 else :
-                    deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
+                    deblur_im, init_im, output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, n_it = PnP_module.restore(blur_im,init_im,input_im,k)
 
                 print('PSNR: {:.2f}dB'.format(output_psnr))
                 print('SSIM: {:.2f}'.format(output_ssim))
                 print('LPIPS: {:.2f}'.format(output_lpips))
                 print('BRISQUE: {:.2f}'.format(output_brisque))
+                print('PSNR den: {:.2f}dB'.format(output_den_psnr))
+                print('SSIM den: {:.2f}'.format(output_den_ssim))
+                print('LPIPS den: {:.2f}'.format(output_den_lpips))
+                print('BRISQUE den: {:.2f}'.format(output_den_brisque))
                 print(f'N iterations: {n_it}')
                 
                 psnr_k_list.append(output_psnr)
@@ -299,7 +307,12 @@ def deblur():
                             'F_list' : F_list,
                             'f_list' : f_list,
                             'lamb_tab' : lamb_tab,
-                            'std_tab' : std_tab
+                            'std_tab' : std_tab,
+                            'output_den_img' : output_den_img, 
+                            'output_den_psnr' : output_den_psnr, 
+                            'output_den_ssim' : output_den_ssim, 
+                            'output_den_lpips' : output_den_lpips,
+                            'output_den_brisque' : output_den_brisque, 
                         }
                     np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
                 
@@ -329,6 +342,11 @@ def deblur():
                             'std_end' : PnP_module.std_end,
                             'stepsize' : PnP_module.stepsize,
                             'opt_alg': PnP_module.hparams.opt_alg,
+                            'output_den_img' : output_den_img, 
+                            'output_den_psnr' : output_den_psnr, 
+                            'output_den_ssim' : output_den_ssim,
+                            'output_den_lpips' : output_den_lpips,
+                            'output_den_brisque' : output_den_brisque, 
                         }
                     np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
 

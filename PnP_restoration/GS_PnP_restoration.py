@@ -321,6 +321,14 @@ class PnP_restoration():
             beta_1 = 0.9
             beta_2 = 0.999
             eps = 1e-8
+
+            #for reproducibility
+            generator = torch.Generator(device = self.device)
+            if self.hparams.seed != None:
+                generator.manual_seed(self.hparams.seed)
+            else:
+                generator.manual_seed(0)
+
             for i in tqdm(range(self.maxitr)):
 
                 F_old = F
@@ -398,7 +406,7 @@ class PnP_restoration():
                     g_mean = torch.tensor([0]).to(self.device).float()
                     Dg_mean = torch.zeros(*x_old.size()).to(self.device)
                     for _ in range(self.hparams.num_noise):
-                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
+                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device), generator = generator)
                         x_old_noise = x_old + noise
                         _,g,Dg = self.denoise(x_old_noise, self.std)
                         g_mean += g
@@ -516,21 +524,25 @@ class PnP_restoration():
                     x = x_old
                     F = F_old
 
-        if self.hparams.opt_alg == "PnP_GD":#a last denoising
-            Dy,_,_ = self.denoise(y, self.sigma_denoiser)
-            y = Dy
-
         output_img = tensor2array(y.cpu())
         output_psnr = psnr(clean_img, output_img)
         output_ssim = ssim(clean_img, output_img, data_range = 1, channel_axis = 2)
-        output_brisque = brisque.score(output_img)
+        output_brisque = brisque.score(np.clip(output_img, 0, 1))
         clean_img_tensor, output_img_tensor = array2tensor(clean_img).float(), array2tensor(output_img).float()
         output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
 
+        Dy,_,_ = self.denoise(y, self.std)
+        output_den_img = tensor2array(Dy.cpu())
+        output_den_psnr = psnr(clean_img, output_den_img)
+        output_den_ssim = ssim(clean_img, output_den_img, data_range = 1, channel_axis = 2)
+        output_den_brisque = brisque.score(np.clip(output_den_img, 0, 1))
+        output_den_img_tensor = array2tensor(output_den_img).float()
+        output_den_lpips = loss_lpips.forward(clean_img_tensor, output_den_img_tensor).item()
+
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab)
         else:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, i
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i
 
     def initialize_curves(self):
 
@@ -725,6 +737,7 @@ class PnP_restoration():
         parser.add_argument('--annealing_number', type=int, default=16)
         parser.add_argument('--last_itr', type=int, default=300)
         parser.add_argument('--sigma_denoiser', type=float)
+        parser.add_argument('--seed', type=int)
         parser.add_argument('--lpips', dest='lpips', action='store_true')
         parser.set_defaults(lpips=False)
         parser.add_argument('--n_images', type=int, default=68)
