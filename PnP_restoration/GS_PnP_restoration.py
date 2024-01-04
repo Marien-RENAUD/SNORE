@@ -183,7 +183,7 @@ class PnP_restoration():
             F = f + self.lamb * regul
         return f.item(), F.item()
 
-    def restore(self, img, init_im, clean_img, degradation,extract_results=False, sf=1):
+    def restore(self, img, init_im, clean_img, degradation, extract_results=False, sf=1):
         '''
         Compute GS-PnP restoration algorithm
         :param img: Degraded image
@@ -334,15 +334,16 @@ class PnP_restoration():
                 F_old = F
                 x_old = x
                 
-                # # The 50 first steps are special for inpainting
-                # if self.hparams.inpainting_init and i < self.hparams.n_init:
-                #     self.sigma_denoiser = 50
-                #     use_backtracking = False
-                #     early_stopping = False
-                # else :
-                #     self.sigma_denoiser = self.hparams.sigma_denoiser
-                #     use_backtracking = self.hparams.use_backtracking
-                #     early_stopping = self.hparams.early_stopping
+                # The 50 first steps are special for inpainting
+                if self.hparams.opt_alg == "PnP_Prox":
+                    if self.hparams.inpainting_init and i < self.hparams.n_init:
+                        self.std = 50. /255.
+                        use_backtracking = False
+                        early_stopping = False
+                    else :
+                        self.std = self.sigma_denoiser
+                        use_backtracking = self.hparams.use_backtracking
+                        early_stopping = self.hparams.early_stopping
 
                 if self.hparams.opt_alg == "Data_GD":
                     z = x_old
@@ -391,7 +392,6 @@ class PnP_restoration():
                     if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
                         # self.std = sigma_tab[i // num_itr_each_ann]
                         # self.stepsize = stepsize[i // num_itr_each_ann]
-
                         self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
                         # self.lamb = lamb_schedule[i // num_itr_each_ann]
                         self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
