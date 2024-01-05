@@ -3,38 +3,43 @@ import numpy as np
 from collections import OrderedDict
 from argparse import ArgumentParser
 from GS_PnP_restoration import PnP_restoration
-from utils.utils_restoration import single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave
+from utils.utils_restoration import single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave, psnr, array2tensor, tensor2array
 from natsort import os_sorted
 import wandb
+import imageio
+from brisque import BRISQUE
+from skimage.metrics import structural_similarity as ssim
+from lpips import LPIPS
 
-# Define sweep config
-sweep_configuration = {
-    "method": "grid",
-    "name": "sweep",
-    "metric": {"goal": "minimize", "name": "output_lpips"},
-    "parameters": {
-        "lamb": {"values" : [0.1, 0.05, 0.15]},
-        "sigma_denoiser": {"values" : [10. / 255., 5. / 255., 15. / 255.]},
-        "maxitr" : {"values" : [500]},
-    },
-}
+loss_lpips = LPIPS(net='alex', version='0.1')
+brisque = BRISQUE(url=False)
 
-# # # Initialize sweep by passing in config.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
+# # Define sweep config
+# sweep_configuration = {
+#     "method": "grid",
+#     "name": "sweep",
+#     "metric": {"goal": "minimize", "name": "output_lpips"},
+#     "parameters": {
+#         "lamb": {"values" : [0.1, 0.05, 0.15]},
+#         "std_end": {"values" : [3. / 255., 5. / 255., 10. / 255.]},
+#         "maxitr" : {"values" : [500]},
+#     },
+# }
+
+# # # # Initialize sweep by passing in config.
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP_inpainting")
 
 def inpaint():
-
-    if hparams.use_wandb:
-        wandb.init()    
-
     parser = ArgumentParser()
     parser.add_argument('--prop_mask', type=float, default=0.5)
     parser.add_argument('--image_path', type=str)
     parser = PnP_restoration.add_specific_args(parser)
     hparams = parser.parse_args()
 
+    if hparams.use_wandb:
+        wandb.init()  
+
     # Inpainting specific hyperparameters
-    
     hparams.degradation_mode = 'inpainting'
     hparams.noise_level_img = 0
     hparams.n_init = 10
@@ -45,8 +50,7 @@ def inpaint():
     PnP_module = PnP_restoration(hparams)
 
     PnP_module.lamb, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.maxitr, PnP_module.std_0, PnP_module.std_end, PnP_module.stepsize = PnP_module.hparams.lamb, PnP_module.hparams.lamb_0, PnP_module.hparams.lamb_end, PnP_module.hparams.maxitr, PnP_module.hparams.std_0, PnP_module.hparams.std_end, PnP_module.hparams.stepsize
-    PnP_module.hparams.std = hparams.sigma_denoiser
-    PnP_module.hparams.early_stopping = False
+    PnP_module.sigma_denoiser = PnP_module.std_end
 
     if PnP_module.std_end == None:
         if PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
@@ -67,8 +71,8 @@ def inpaint():
         PnP_module.lamb_end = 0.1
 
     if hparams.use_wandb:
-        PnP_module.lamb = wandb.config.lamb
-        PnP_module.sigma_denoiser = wandb.config.sigma_denoiser
+        PnP_module.lamb_0 = PnP_module.lamb_end = wandb.config.lamb
+        PnP_module.std_end = wandb.config.std_end
         PnP_module.maxitr = wandb.config.maxitr
 
      # Set input image paths
@@ -208,6 +212,90 @@ def inpaint():
 
             print('output images saved at ', save_im_path)
 
+            if hparams.save_video:
+                save_mov_path = os.path.join(save_im_path, 'img_' + str(i) +"_samples_video")
+                fps = 50
+                duration = int(1000 * 1 / fps)
+                im_list = []
+                for x in x_list:
+                    im_list.append(single2uint(rescale(x)))
+                imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
+
+            #save the result of the experiment
+            input_im_tensor, masked_im_tensor = array2tensor(input_im).float(), array2tensor(mask_im*mask).float()
+            dict = {
+                    'GT' : input_im,
+                    'BRISQUE_GT' : brisque.score(input_im),
+                    'Inpainted' : inpainted_im,
+                    'Masked' : mask_im*mask,
+                    'PSNR_masked' : psnr(input_im, mask_im*mask),
+                    'SSIM_masked' : ssim(input_im, mask_im*mask, data_range = 1, channel_axis = 2),
+                    'LPIPS_masked' : loss_lpips.forward(input_im_tensor, masked_im_tensor).item(),
+                    'BRISQUE_masked' : brisque.score(mask_im*mask),
+                    'Init' : mask_im,
+                    'SSIM_output' : output_ssim,
+                    'PSNR_output' : output_psnr,
+                    'LPIPS_output' : output_lpips,
+                    'BRISQUE_output' : output_brisque,
+                    'lamb' : PnP_module.lamb,
+                    'lamb_0' : PnP_module.lamb_0,
+                    'lamb_end' : PnP_module.lamb_end,
+                    'maxitr' : PnP_module.maxitr,
+                    'std_0' : PnP_module.std_0,
+                    'std_end' : PnP_module.std_end,
+                    'stepsize' : PnP_module.stepsize,
+                    'opt_alg': PnP_module.hparams.opt_alg,
+                    'psnr_tab' : psnr_tab,
+                    'ssim_tab' : ssim_tab,
+                    'brisque_tab' : brisque_tab,
+                    'lpips_tab' : lpips_tab,
+                    'Dg_list' : Dg_list,
+                    'g_list' : g_list,
+                    'F_list' : F_list,
+                    'f_list' : f_list,
+                    'lamb_tab' : lamb_tab,
+                    'std_tab' : std_tab,
+                    'output_den_img' : output_den_img, 
+                    'output_den_psnr' : output_den_psnr, 
+                    'output_den_ssim' : output_den_ssim, 
+                    'output_den_lpips' : output_den_lpips,
+                    'output_den_brisque' : output_den_brisque, 
+                }
+            np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
+        
+        if not(hparams.extract_images):
+                #save the result of the experiment
+                input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
+                dict = {
+                        'GT' : input_im,
+                        'BRISQUE_GT' : brisque.score(input_im),
+                        'Inpainted' : inpainted_im,
+                        'Masked' : mask_im*mask,
+                        'PSNR_masked' : psnr(input_im, mask_im*mask),
+                        'SSIM_masked' : ssim(input_im, mask_im*mask, data_range = 1, channel_axis = 2),
+                        'LPIPS_masked' : loss_lpips.forward(input_im_tensor, masked_im_tensor).item(),
+                        'BRISQUE_masked' : brisque.score(mask_im*mask),
+                        'Init' : mask_im,
+                        'SSIM_output' : output_ssim,
+                        'PSNR_output' : output_psnr,
+                        'LPIPS_output' : output_lpips,
+                        'BRISQUE_output' : output_brisque,
+                        'lamb' : PnP_module.lamb,
+                        'lamb_0' : PnP_module.lamb_0,
+                        'lamb_end' : PnP_module.lamb_end,
+                        'maxitr' : PnP_module.maxitr,
+                        'std_0' : PnP_module.std_0,
+                        'std_end' : PnP_module.std_end,
+                        'stepsize' : PnP_module.stepsize,
+                        'opt_alg': PnP_module.hparams.opt_alg,
+                        'output_den_img' : output_den_img, 
+                        'output_den_psnr' : output_den_psnr, 
+                        'output_den_ssim' : output_den_ssim,
+                        'output_den_lpips' : output_den_lpips,
+                        'output_den_brisque' : output_den_brisque, 
+                    }
+                np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
+
         
     if hparams.extract_curves:
         # Save curves
@@ -238,8 +326,8 @@ def inpaint():
     # avg_k_psnrY = np.mean(np.array(psnrY_list))
     # print('avg Y psnr : {:.2f}dB'.format(avg_k_psnrY))
 
-# # # Start sweep job.
-wandb.agent(sweep_id, function=inpaint)
+# # # # Start sweep job.
+# wandb.agent(sweep_id, function=inpaint)
 
 if __name__ == '__main__' :
     psnr = inpaint()
