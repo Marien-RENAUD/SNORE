@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from matplotlib import gridspec
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as PSNR
@@ -13,8 +14,8 @@ import cv2
 import imageio
 
 parser = ArgumentParser()
-parser.add_argument('--fig_number', type=int, default=0)
-parser.add_argument('--table', type=bool, default=False)
+parser.add_argument('--fig_number', type=int, default=-1)
+parser.add_argument('--table_number', type=int, default=0)
 pars = parser.parse_args()
 
 path_figure = "/beegfs/mrenaud/Result_Average_PnP/figure/"
@@ -43,7 +44,7 @@ if pars.fig_number == 0:
     text_size = 30
 
     for i, im_name in enumerate(im_name_list):
-        width = 280
+        width = 270
         dic_PnPProx = np.load(path_result + "PnP_Prox_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
         # dic_PnPGD = np.load(path_result + "PnP_GD_k_0/noise_10.0/dict_"+im_name+"_results.npy", allow_pickle=True).item()
         dic_APnP = np.load(path_result + "Average_PnP_k_0/noise_10.0/annealing_number_16/dict_"+im_name+"_results.npy", allow_pickle=True).item()
@@ -58,12 +59,27 @@ if pars.fig_number == 0:
         # deblur_APnPProx = (dic_APnPProx["Deblur"], dic_APnPProx["PSNR_output"], dic_APnPProx["SSIM_output"], dic_APnPProx["LPIPS_output"], dic_APnPProx["BRISQUE_output"])
         F_list = dic_APnP['F_list']
 
+        c = 140
+        wid, hei = 70, 70
+        x_c, y_c = 230, 150
         ax = plt.subplot(gs[indices[0]])
+
+        #add a zoom of the image
+        patch_c = cv2.resize(gt[y_c:y_c+hei, x_c:x_c+wid], dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+        gt[-patch_c.shape[0]:,-patch_c.shape[1]:] = patch_c
+        rect_params_z = {'xy': (gt.shape[1]-patch_c.shape[1]-1, gt.shape[0]-patch_c.shape[0]-1), 'width': c, 'height': c, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+        ax.add_patch(plt.Rectangle(**rect_params_z))
+
         ax.imshow(gt)
         rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
         ax.add_patch(plt.Rectangle(**rect_params))
-        text_params = {'xy': (5, 5), 'text': r"PSNR$\uparrow$/BRISQUE$\downarrow$", 'color': 'white', 'fontsize': text_size, 'va': 'top', 'ha': 'left'}
+        text_params = {'xy': (5, 5), 'text': r"PSNR$\uparrow$BRISQUE$\downarrow$", 'color': 'white', 'fontsize': text_size, 'va': 'top', 'ha': 'left'}
         ax.annotate(**text_params)
+        
+        #add a color rectangle
+        rect_params_c = {'xy': (x_c, y_c), 'width': wid, 'height': hei, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+        ax.add_patch(plt.Rectangle(**rect_params_c))
+
         ax.axis('off')
         ax.set_title("Ground Truth", fontsize=text_size)
 
@@ -72,14 +88,25 @@ if pars.fig_number == 0:
         for j, im in enumerate([blur, deblur_PnPProx, deblur_APnP]):
             ax = plt.subplot(gs[indices[1+j]])
             if j ==0:
-                c = 110
                 k_resize = cv2.resize(k, dsize =(c,c), interpolation=cv2.INTER_CUBIC)
                 im[0][-k_resize.shape[0]:,:k_resize.shape[1]] = k_resize[:,:,None]*np.ones(3)[None,None,:] / np.max(k_resize)
+            
+            #add a zoom of the image
+            patch_c = cv2.resize(im[0][y_c:y_c+hei, x_c:x_c+wid], dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+            im[0][-patch_c.shape[0]:,-patch_c.shape[1]:] = patch_c
+            rect_params_z = {'xy': (im[0].shape[1]-patch_c.shape[1]-1, im[0].shape[0]-patch_c.shape[0]-1), 'width': c, 'height': c, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+            ax.add_patch(plt.Rectangle(**rect_params_z))
+            
             ax.imshow(im[0])
             rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
             ax.add_patch(plt.Rectangle(**rect_params))
             text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}".format(im[1], im[4]), 'color': 'white', 'fontsize': text_size, 'va': 'top', 'ha': 'left'}
             ax.annotate(**text_params)
+
+            #add a color rectangle
+            rect_params_c = {'xy': (x_c, y_c), 'width': wid, 'height': hei, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+            ax.add_patch(plt.Rectangle(**rect_params_c))
+
             ax.axis('off')
             ax.set_title(name_fig_list[j], fontsize=text_size)
 
@@ -91,7 +118,7 @@ if pars.fig_number == 0:
         ax.yaxis.set_tick_params(labelsize=text_size)
         ax.set_xticks([1200, 1500])
         ax.xaxis.set_tick_params(labelsize=text_size)
-        ax.set_title(r"$\mathcal{F}(\mathbf{x_k}, \mathbf{y}) + \alpha \mathcal{R}_{\sigma}(\mathbf{x_k})$", fontsize=text_size)
+        ax.set_title(r"$\mathcal{F}(\mathbf{x_k}, \mathbf{y}) + \frac{\alpha}{\sigma^2} g_{\sigma}(\mathbf{x_k})$", fontsize=text_size)
 
     fig.savefig(path_figure+'/Results_restoration_deblurring.png')
     plt.show()
@@ -187,6 +214,8 @@ if pars.fig_number == 1:
     fig.savefig(path_figure+'Results_restoration_annexe_deblurring_parameters.png')
     plt.show()
 
+
+
 if pars.fig_number == 2:
     # generate figure for deblurring in the Annexe. With the decrease of the function for the indian image.
     path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set4c/"
@@ -277,8 +306,10 @@ if pars.fig_number == 2:
     fig.savefig(path_figure+'Results_restoration_annexe_deblurring_parameters_2.png')
     plt.show()
 
-if pars.fig_number == 3:
 
+
+if pars.fig_number == 3:
+    # Show the influence of a last denoising on the result
     path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set4c/Average_PnP_k_0/noise_10.0/annealing_number_16/"
 
     # name_list = ["Average_kernel_0","kernel_0"]
@@ -385,7 +416,7 @@ if pars.fig_number == 4:
     im_list_2 = np.array(im_list_2)
     print(im_list_2.shape)
     im_std = np.std(im_list_2, axis = 0)
-    im_list.append(im_std / np.max(im_std))
+    im_list.append(np.abs(1/np.log(im_std)) / np.max(np.abs(1/np.log(im_std))))
 
     # for i in range(20):
     #     im_list_3 = im_list_2[:i, :, :, :]
@@ -534,7 +565,7 @@ if pars.fig_number == 6:
 
 
 if pars.fig_number == 7:
-    # Generate a figure with various lanmbda and sigma for Average PnP
+    # Generate a figure with various lanmbda and sigma for RED
     path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set1c/PnP_Prox_k_0/noise_10.0/"
 
     lamb_list = [0.05, 0.075, 0.1, 0.125, 0.15] #0.01, 0.5
@@ -572,8 +603,8 @@ if pars.fig_number == 7:
         plt.show()
 
 
-if pars.table:
-    #generate the result for table of result on CBSD68 dataset.
+if pars.table_number == 1:
+    #generate the result of deblurring for table of result on CBSD68 dataset.
 
     path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/CBSD68/"
 
@@ -611,13 +642,71 @@ if pars.table:
         print("Average_PnP PSNR/SSIM/LPIPS/BRISQUE :{:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[1]),np.mean(output_ssim[1]),np.mean(output_lpips[1]),np.mean(output_brisque[1])))
         print("Average_PnP_Prox PSNR/SSIM/LPIPS/BRISQUE :{:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[2]),np.mean(output_ssim[2]),np.mean(output_lpips[2]),np.mean(output_brisque[2])))
 
+if pars.table_number == 2:
+    #generate the result of inpainting for table of result on CBSD68 dataset.
+
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/inpainting/CBSD68/"
+
+    n = 68
+    output_psnr = [[],[]]
+    output_ssim = [[],[]]
+    output_lpips = [[],[]]
+    output_brisque = [[],[]]
+    for i in tqdm(range(n)):
+        dic_RED = np.load(path_result + "PnP_Prox/noise_0/mask_prop_0.5/annealing_number_16/dict_"+str(i)+"_results.npy", allow_pickle=True).item()
+        output_psnr[0].append(dic_RED["PSNR_output"])
+        output_ssim[0].append(dic_RED["SSIM_output"])
+        output_lpips[0].append(dic_RED["LPIPS_output"])
+        output_brisque[0].append(dic_RED["BRISQUE_output"])
+        dic_APnPProx = np.load(path_result + "Average_PnP_Prox/noise_0/mask_prop_0.5/annealing_number_16/dict_"+str(i)+"_results.npy", allow_pickle=True).item()
+        output_psnr[1].append(dic_APnPProx["PSNR_output"])
+        output_ssim[1].append(dic_APnPProx["SSIM_output"])
+        output_lpips[1].append(dic_APnPProx["LPIPS_output"])
+        output_brisque[1].append(dic_APnPProx["BRISQUE_output"])
+
+    output_psnr = np.array(output_psnr)
+    output_ssim = np.array(output_ssim)
+    output_lpips = np.array(output_lpips)
+    output_brisque = np.array(output_brisque)
+    print("PnP_Prox PSNR/SSIM/LPIPS/BRISQUE : {:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[0]),np.mean(output_ssim[0]),np.mean(output_lpips[0]),np.mean(output_brisque[0])))
+    print("Average_PnP_Prox PSNR/SSIM/LPIPS/BRISQUE :{:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[1]),np.mean(output_ssim[1]),np.mean(output_lpips[1]),np.mean(output_brisque[1])))
+
+
+if pars.table_number == 3:
+    #generate the result of inpainting for table of result of DiffPIR on CBSD10 dataset.
+
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/CBSD10/DiffPIR"
+
+    for noise in ["5.0", "10.0", "20.0"]:
+        n = 10
+        output_psnr = []
+        output_ssim = []
+        output_lpips = []
+        output_brisque = []
+        for i in tqdm(range(n)):
+            for j in range(n):
+                dic_Diff = np.load(path_result + "/kernel_"+str(i)+"/noise_level_"+noise+"/dict_"+str(j)+"_results.npy", allow_pickle=True).item()
+                output_psnr.append(dic_Diff["PSNR_output"])
+                output_ssim.append(dic_Diff["SSIM_output"])
+                output_lpips.append(dic_Diff["LPIPS_output"])
+                output_brisque.append(dic_Diff["BRISQUE_output"])
+
+        output_psnr = np.array(output_psnr)
+        output_ssim = np.array(output_ssim)
+        output_lpips = np.array(output_lpips)
+        output_brisque = np.array(output_brisque)
+        print("Noise = "+noise)
+        print("DiffPIR PSNR/SSIM/LPIPS/BRISQUE : {:.2f} & {:.2f} & {:.2f} & {:.2f}".format(np.mean(output_psnr),np.mean(output_ssim),np.mean(output_lpips),np.mean(output_brisque)))
+
+
+
 
 
 if pars.fig_number == 8:
     #Generate a figure for the annealing number influence.
     path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set4c/Average_PnP_k_0/noise_10.0/"
 
-    im_name_list = ["1", "2", "3", "4", "11", "12", "13", "14"]
+    im_name_list = [1, 2, 3, 4, 11, 12, 13, 14]
 
     PSNR_list = []
     SSIM_list = []
@@ -626,6 +715,7 @@ if pars.fig_number == 8:
     im_list = []
 
     for i, im_name in enumerate(im_name_list):
+        im_name = str(im_name)
         width = 280
         psnr, ssim, lpips, brisque = 0, 0, 0, 0
         im_blur_list = []
@@ -647,56 +737,229 @@ if pars.fig_number == 8:
         im_list.append(im_j_list)
         PSNR_list.append(psnr/4); SSIM_list.append(ssim/4); LPIPS_list.append(lpips/4); BRISQUE_list.append(brisque/4)
 
-    fig, ax = plt.subplots(2, 2, figsize = (5, 5))
+    fig, ax = plt.subplots(1, 4, figsize = (20, 5))
+    size_text = 25
+    size_line = 5
 
-    ax[0, 0].plot(im_name_list, PSNR_list, label = 'PSNR')
-    ax[0, 0].legend()
+    ax_i = ax[0]
+    ax_i.plot(im_name_list, PSNR_list, linewidth = size_line)
+    ax_i.scatter(im_name_list, PSNR_list, linewidth = size_line)
+    ax_i.set_xlabel('$m$', fontsize = size_text)
+    ax_i.xaxis.set_label_coords(0.5, -0.05)
+    ax_i.set_xticks([1, 14])
+    ax_i.xaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_yticks([18, 26])
+    ax_i.yaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_title("PSNR", fontsize = size_text)
 
-    ax[0, 1].plot(im_name_list, SSIM_list, label = 'SSIM')
-    ax[0, 1].legend()
+    ax_i = ax[1]
+    ax_i.plot(im_name_list, SSIM_list, linewidth = size_line)
+    ax_i.scatter(im_name_list, SSIM_list, linewidth = size_line)
+    ax_i.set_xlabel('$m$', fontsize = size_text)
+    ax_i.xaxis.set_label_coords(0.5, -0.05)
+    ax_i.set_xticks([1, 14])
+    ax_i.xaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_yticks([0.3, 0.7])
+    ax_i.yaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_title("SSIM", fontsize = size_text)
 
-    ax[1, 0].plot(im_name_list, LPIPS_list, label = 'LPIPS')
-    ax[1, 0].legend()
+    ax_i = ax[2]
+    ax_i.plot(im_name_list, LPIPS_list, linewidth = size_line)
+    ax_i.scatter(im_name_list, LPIPS_list, linewidth = size_line)
+    ax_i.set_xlabel('$m$', fontsize = size_text)
+    ax_i.xaxis.set_label_coords(0.5, -0.05)
+    ax_i.set_xticks([1, 14])
+    ax_i.xaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_yticks([0.2, 0.5])
+    ax_i.yaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_title("LPIPS", fontsize = size_text)
 
-    ax[1, 1].plot(im_name_list, BRISQUE_list, label = 'BRISQUE')
-    ax[1, 1].legend()
+    ax_i = ax[3]
+    ax_i.plot(im_name_list, BRISQUE_list, linewidth = size_line)
+    ax_i.scatter(im_name_list, BRISQUE_list, linewidth = size_line)
+    ax_i.set_xlabel('$m$', fontsize = size_text)
+    ax_i.xaxis.set_label_coords(0.5, -0.05)
+    ax_i.set_xticks([1, 14])
+    ax_i.xaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_yticks([10, 60])
+    ax_i.yaxis.set_tick_params(labelsize=size_text)
+    ax_i.set_title("BRISQUE", fontsize = size_text)
+
     fig.savefig(path_figure+'/Annealing_influence.png')
 
     #generate a figure for the annealing number influence on images.
-    im_name_list = ["1", "4", "11", "14"]
+    im_name_list = ["1", "4", "11", "16"]
 
     n = 2 #number of images 
     m = 2 + len(im_name_list) #number of reconstructions
 
     #size of the black rectangle
-    height = 22
+    height = 25
+    c = 140
+    wid, hei = 70, 70
+    
 
     fig = plt.figure(figsize = (m*5, n*8))
     for i in range(n):
+        if i == 0:
+            x_c, y_c = 150, 150
+        if i == 1:
+            x_c, y_c = 100, 300
         for j in range(m):
             ax = fig.add_subplot(n,m,1+j+m*i)
             im = im_list[j][i]
+
             if j==0:
+                #add a zoom of the image
+                patch_c = cv2.resize(im[y_c:y_c+hei, x_c:x_c+wid], dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+                im[-patch_c.shape[0]:,-patch_c.shape[1]:] = patch_c
+                rect_params_z = {'xy': (im.shape[1]-patch_c.shape[1]-1, im.shape[0]-patch_c.shape[0]-1), 'width': c, 'height': c, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+                ax.add_patch(plt.Rectangle(**rect_params_z))
+
+                #add a color rectangle
+                rect_params_c = {'xy': (x_c, y_c), 'width': wid, 'height': hei, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+                ax.add_patch(plt.Rectangle(**rect_params_c))
+
                 width = 270
                 ax.imshow(im)
-                rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+                rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 0, 'edgecolor': 'black', 'facecolor': 'black'}
                 ax.add_patch(plt.Rectangle(**rect_params))
-                text_params = {'xy': (5, 5), 'text': "PSNR/SSIM/LPIPS/BRISQUE", 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+                text_params = {'xy': (5, 5), 'text': r"PSNR$\uparrow$SSIM$\uparrow$BRISQUE$\downarrow$", 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
                 ax.annotate(**text_params)
                 ax.axis('off')
                 ax.set_title("Ground Truth", fontsize=21)
             else:
-                width = 230
-                ax.imshow(im[0])
-                rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+                im_np = im[0]
+                #add a zoom of the image
+                patch_c = cv2.resize(im_np[y_c:y_c+hei, x_c:x_c+wid], dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+                im_np[-patch_c.shape[0]:,-patch_c.shape[1]:] = patch_c
+                rect_params_z = {'xy': (im_np.shape[1]-patch_c.shape[1]-1, im_np.shape[0]-patch_c.shape[0]-1), 'width': c, 'height': c, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+                ax.add_patch(plt.Rectangle(**rect_params_z))
+
+                #add a color rectangle
+                rect_params_c = {'xy': (x_c, y_c), 'width': wid, 'height': hei, 'linewidth': 2, 'edgecolor': 'red', 'facecolor': 'none'}
+                ax.add_patch(plt.Rectangle(**rect_params_c))
+
+                width = 170
+                ax.imshow(im_np)
+                rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 0, 'edgecolor': 'black', 'facecolor': 'black'}
                 ax.add_patch(plt.Rectangle(**rect_params))
-                text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+                text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
                 ax.annotate(**text_params)
                 ax.axis('off')
                 if j==1:
                     ax.set_title("Blur", fontsize=21)
                 else:
-                    ax.set_title("Deblur annealing "+str(im_name_list[j-2]), fontsize=21)
+                    ax.set_title("$m = $ "+str(im_name_list[j-2]), fontsize=21)
    
         fig.savefig(path_figure+'/Annealing_influence_images.png')
         plt.show()
+
+
+
+if pars.fig_number == 9:
+    # Generate a figure with various lambda_0 and various lambda_end for Average PnP
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/totem/Average_PnP_k_0/noise_10.0/"
+
+    lamb_end_list = [0.1, 0.5, 1., 1.5, 10.]
+    lamb_0_list = [0.01, 0.05, 0.1, 0.15, 1.]
+
+    n = len(lamb_0_list)
+    m = len(lamb_end_list)
+
+    #size of the black rectangle
+    height = 22
+    width = 230
+
+    fig = plt.figure(figsize = (n*5, 8))
+    for i in range(n):
+        dic_PnP = np.load(path_result + "lamb_0_"+str(lamb_0_list[i])+"/annealing_number_16/dict_0_results.npy", allow_pickle=True).item()
+
+        PnP = (dic_PnP["Deblur"], dic_PnP["PSNR_output"], dic_PnP["SSIM_output"], dic_PnP["LPIPS_output"], dic_PnP["BRISQUE_output"])
+        
+        im = PnP
+        ax = fig.add_subplot(1,n,1+i)
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+        ax.set_title(r"$\alpha_0 = {}$".format(lamb_0_list[i]), fontsize=21)
+            
+    fig.savefig(path_figure+'/All_results_lamb_0_Average_PnP.png')
+    plt.show()
+
+    fig = plt.figure(figsize = (m*5, 8))
+    for i in range(n):
+        dic_PnP = np.load(path_result + "lamb_end_"+str(lamb_end_list[i])+"/annealing_number_16/dict_0_results.npy", allow_pickle=True).item()
+
+        PnP = (dic_PnP["Deblur"], dic_PnP["PSNR_output"], dic_PnP["SSIM_output"], dic_PnP["LPIPS_output"], dic_PnP["BRISQUE_output"])
+        
+        im = PnP
+        ax = fig.add_subplot(1,m,1+i)
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+        ax.set_title(r"$\alpha_{m-1} = "+"{}$".format(lamb_end_list[i]), fontsize=21)
+            
+    fig.savefig(path_figure+'/All_results_lamb_end_Average_PnP.png')
+    plt.show()
+
+
+if pars.fig_number == 10:
+    # Generate a figure with various std_0 and various std_end for Average PnP
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/totem/Average_PnP_k_0/noise_10.0/"
+
+    std_end_list = [0.00392, 0.0117, 0.0196, 0.0392, 0.0706,]
+    std_end_name = [1, 3, 5, 10, 18]
+    std_0_list = [0.0196, 0.0392, 0.0706, 0.1176]
+    std_0_name = [5, 10, 18, 30]
+
+    n = len(std_0_list)
+    m = len(std_end_list)
+
+    #size of the black rectangle
+    height = 22
+    width = 230
+
+    fig = plt.figure(figsize = (n*5, 8))
+    for i in range(n):
+        dic_PnP = np.load(path_result + "std_0_"+str(std_0_list[i])+"/annealing_number_16/dict_0_results.npy", allow_pickle=True).item()
+
+        PnP = (dic_PnP["Deblur"], dic_PnP["PSNR_output"], dic_PnP["SSIM_output"], dic_PnP["LPIPS_output"], dic_PnP["BRISQUE_output"])
+        
+        im = PnP
+        ax = fig.add_subplot(1,n,1+i)
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+        ax.set_title(r"$\sigma_0 = {}$".format(std_0_name[i]), fontsize=21)
+            
+    fig.savefig(path_figure+'/All_results_std_0_Average_PnP.png')
+    plt.show()
+
+    fig = plt.figure(figsize = (m*5, 8))
+    for i in range(m):
+        dic_PnP = np.load(path_result + "std_end_"+str(std_end_list[i])+"/annealing_number_16/dict_0_results.npy", allow_pickle=True).item()
+
+        PnP = (dic_PnP["Deblur"], dic_PnP["PSNR_output"], dic_PnP["SSIM_output"], dic_PnP["LPIPS_output"], dic_PnP["BRISQUE_output"])
+        
+        im = PnP
+        ax = fig.add_subplot(1,m,1+i)
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': 15, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+        ax.set_title(r"$\sigma_{m-1} = "+"{}$".format(std_end_name[i]), fontsize=21)
+            
+    fig.savefig(path_figure+'/All_results_std_end_Average_PnP.png')
+    plt.show()

@@ -96,10 +96,12 @@ class PnP_restoration():
         return px
 
     def data_fidelity_grad(self, x, y):
-        if self.hparams.noise_model == 'gaussian':
+        if self.hparams.degradation_mode == 'deblurring':
             return utils_sr.grad_solution_L2(x, y, self.k_tensor, self.sf)
+        elif self.hparams.degradation_mode == 'inpainting':
+            return 2 * self.M * (x - y)
         else:
-            raise ValueError('noise model not implemented')   
+            raise ValueError('degradation not implemented')   
 
     def data_fidelity_grad_step(self, x, y, stepsize):
         '''
@@ -214,6 +216,13 @@ class PnP_restoration():
         img_tensor = array2tensor(img).to(self.device) # for GPU computations (if GPU available)
         self.initialize_prox(img_tensor, degradation) # prox calculus that can be done outside of the loop
 
+        if self.hparams.opt_alg == "PnP_SGD":
+            self.lamb = 1.
+            self.std = 20. / 255.
+            L_tot = (self.lamb/self.std**2 + 1 / self.hparams.noise_level_img**2)
+            delta_stable = 2 / L_tot
+            self.stepsize = delta_stable / 6
+
         # Initialization of the algorithm
         x0 = array2tensor(init_im).to(self.device)
 
@@ -232,34 +241,23 @@ class PnP_restoration():
             psnr_tab.append(current_x_psnr)
             x_list.append(out_x)
 
-        x = x0
-
         diff_F = 1
         F = float('inf')
         self.backtracking_check = True
         
         if self.hparams.opt_alg == "PnP_SGD":
-            lamb = 1.
-            std = 20. / 255.
-            L_tot = (lamb/std**2 + 1 / self.hparams.noise_level_img**2)
-            delta_stable = 2 / L_tot
-            delta_0 = delta_stable / 6
-
             i = 0
             psnr_down = -float("inf")
             psnr_up = current_x_psnr
-            while i < 200: #and abs(psnr_up - psnr_down) > 0.1 * delta_0:
-                # print(i)
-                # print(abs(psnr_up - psnr_down))
+            while i < 200:
                 x_old = x
                 if i % 50 == 0:
                     imsave('deblurring/test_x_' + str(i) + '.png', single2uint(tensor2array(x_old.cpu())))
-                _,g,Dg = self.denoise(x_old, std)
-                x_denoised = x_old - Dg
+                x_denoised,g,Dg = self.denoise(x_old, self.std)
                 if i % 50 == 0:
                     imsave('deblurring/test_xdenoised_' + str(i) + '.png', single2uint(tensor2array(x_denoised.cpu())))
                 noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-                x = x_old - delta_0 * lamb * Dg / std**2 - delta_0 * self.data_fidelity_grad(x_old, img_tensor) + delta_0 * noise
+                x = x_old - self.stepsize * self.lamb * Dg / self.std**2 - self.stepsize * self.data_fidelity_grad(x_old, img_tensor) + self.stepsize * noise
                 z = x
 
                 f, F = self.calculate_F(x_old, img_tensor, g=g)
@@ -271,6 +269,7 @@ class PnP_restoration():
                     print('iteration : ', i)
                     print('current z PSNR : ', current_z_psnr)
                     print('current x PSNR : ', current_x_psnr)
+                    print('current F : ', F)
                 x_list.append(out_x)
                 z_list.append(out_z)
                 g_list.append(g.cpu().item())
@@ -287,10 +286,10 @@ class PnP_restoration():
             print("number of burn-in iteration : ", i)
             i = 1
             while i < 401:
-                delta_i = delta_0/(i**0.8)
+                delta_i = self.stepsize/(i**0.8)
                 x_old = x
-                _,g,Dg = self.denoise(x_old, std)
-                z = x_old - delta_i * lamb * Dg / std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
+                _,g,Dg = self.denoise(x_old, self.std)
+                z = x_old - delta_i * self.lamb * Dg / self.std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
                 noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
                 x = z + delta_i * noise
                 f, F = self.calculate_F(x_old, img_tensor, g=g)
@@ -335,7 +334,7 @@ class PnP_restoration():
                 x_old = x
                 
                 # The 50 first steps are special for inpainting
-                if self.hparams.opt_alg == "PnP_Prox":
+                if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD") and self.hparams.degradation_mode == 'inpainting':
                     if self.hparams.inpainting_init and i < self.hparams.n_init:
                         self.std = 50. /255.
                         use_backtracking = False

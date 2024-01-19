@@ -20,8 +20,8 @@ brisque = BRISQUE(url=False)
 #     "name": "sweep",
 #     "metric": {"goal": "minimize", "name": "output_lpips"},
 #     "parameters": {
-#         "lamb": {"values" : [0.1, 0.05, 0.15]},
-#         "std_end": {"values" : [3. / 255., 5. / 255., 10. / 255.]},
+#         "lamb": {"values" : [0.2, 0.1, 0.3, 0.4, 0.25, 0.15]},
+#         "std_end": {"values" : [5.]},
 #         "maxitr" : {"values" : [500]},
 #     },
 # }
@@ -53,26 +53,36 @@ def inpaint():
     PnP_module.sigma_denoiser = PnP_module.std_end
 
     if PnP_module.std_end == None:
-        if PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
+        if PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP':
             PnP_module.std_end = 5. / 255.
-        if PnP_module.hparams.opt_alg == 'PnP_Prox':
+        if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
             PnP_module.sigma_denoiser = 10. / 255.
     if PnP_module.maxitr == None:
         PnP_module.maxitr = 500
-    if PnP_module.std_0 == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
+    if PnP_module.std_0 == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
         PnP_module.std_0 = 50. /255.
     if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
         PnP_module.stepsize = 1.
-    if PnP_module.lamb == None and PnP_module.hparams.opt_alg == 'PnP_Prox':
-        PnP_module.lamb = 0.3
-    if PnP_module.lamb_0 == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
-        PnP_module.lamb_0 = 0.1
-    if PnP_module.lamb_end == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
-        PnP_module.lamb_end = 0.1
+    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'Average_PnP':
+        PnP_module.stepsize = .5
+    if PnP_module.lamb == None and PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+        PnP_module.lamb = 0.15
+    if PnP_module.hparams.opt_alg == 'PnP_GD':
+        PnP_module.hparams.n_init = 100
+        PnP_module.hparams.stepsize = 0.5
+    if PnP_module.lamb_0 == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
+        PnP_module.lamb_0 = 0.15
+    if PnP_module.lamb_end == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
+        PnP_module.lamb_end = 0.15
 
     if hparams.use_wandb:
-        PnP_module.lamb_0 = PnP_module.lamb_end = wandb.config.lamb
-        PnP_module.std_end = wandb.config.std_end
+        if PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP':
+            PnP_module.hparams.lamb_0 = PnP_module.lamb_0 = wandb.config.lamb
+            PnP_module.hparams.lamb_end = PnP_module.lamb_end = wandb.config.lamb
+            PnP_module.hparams.std_end = PnP_module.std_end = wandb.config.std_end /255.
+        if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+            PnP_module.hparams.lamb = PnP_module.lamb = wandb.config.lamb
+            PnP_module.hparams.sigma_denoiser = PnP_module.sigma_denoiser = wandb.config.std_end /255.
         PnP_module.maxitr = wandb.config.maxitr
 
      # Set input image paths
@@ -265,7 +275,7 @@ def inpaint():
         
         if not(hparams.extract_images):
                 #save the result of the experiment
-                input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
+                input_im_tensor, masked_im_tensor = array2tensor(input_im).float(), array2tensor(mask_im*mask).float()
                 dict = {
                         'GT' : input_im,
                         'BRISQUE_GT' : brisque.score(input_im),
@@ -287,12 +297,7 @@ def inpaint():
                         'std_0' : PnP_module.std_0,
                         'std_end' : PnP_module.std_end,
                         'stepsize' : PnP_module.stepsize,
-                        'opt_alg': PnP_module.hparams.opt_alg,
-                        'output_den_img' : output_den_img, 
-                        'output_den_psnr' : output_den_psnr, 
-                        'output_den_ssim' : output_den_ssim,
-                        'output_den_lpips' : output_den_lpips,
-                        'output_den_brisque' : output_den_brisque, 
+                        'opt_alg': PnP_module.hparams.opt_alg, 
                     }
                 np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
 
