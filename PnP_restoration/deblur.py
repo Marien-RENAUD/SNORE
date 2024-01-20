@@ -185,6 +185,10 @@ def deblur():
                 exp_out_path = os.path.join(exp_out_path, "sigma_denoiser_"+str(PnP_module.hparams.sigma_denoiser))
                 if not os.path.exists(exp_out_path):
                     os.mkdir(exp_out_path)
+            if PnP_module.hparams.im_init != None:
+                exp_out_path = os.path.join(exp_out_path, "im_init_"+PnP_module.hparams.im_init)
+                if not os.path.exists(exp_out_path):
+                    os.mkdir(exp_out_path)
             if PnP_module.hparams.no_data_term == True:
                 exp_out_path = os.path.join(exp_out_path, "no_data_term")
                 if not os.path.exists(exp_out_path):
@@ -216,9 +220,12 @@ def deblur():
                 blur_im += noise
                 blur_im =  np.float32(blur_im)
 
-                if hparams.im_init != None:
-                    dic = np.load(hparams.im_init, allow_pickle=True).item()
-                    init_im = dic["Deblur"]
+                if hparams.im_init == 'random':
+                    init_im = np.random.random(blur_im.shape)
+                elif hparams.im_init == 'oracle':
+                    init_im = input_im
+                elif hparams.im_init == 'blur':
+                    init_im = blur_im
                 else:
                     init_im = blur_im
 

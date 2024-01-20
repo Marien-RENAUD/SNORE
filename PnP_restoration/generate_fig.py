@@ -604,43 +604,40 @@ if pars.fig_number == 7:
 
 
 if pars.table_number == 1:
-    #generate the result of deblurring for table of result on CBSD68 dataset.
+    #generate the result of deblurring for table of result on CBSD10 dataset for 3 differents level of noise with various restoration methods.
 
-    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/CBSD68/"
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/CBSD10/"
 
     noise_list = ["5.0", "10.0", "20.0"]
 
-    n = 6
+    n = 10
+    m = 10
     for noise in noise_list:
         print("Noise level :", noise)
-        output_psnr = [[],[],[]]
-        output_ssim = [[],[],[]]
-        output_lpips = [[],[],[]]
-        output_brisque = [[],[],[]]
-        for i in tqdm(range(n)):
-            dic_PnPProx = np.load(path_result + "PnP_Prox_k_0/noise_"+noise+"/dict_"+str(i)+"_results.npy", allow_pickle=True).item()
-            output_psnr[0].append(dic_PnPProx["PSNR_output"])
-            output_ssim[0].append(dic_PnPProx["SSIM_output"])
-            output_lpips[0].append(dic_PnPProx["LPIPS_output"])
-            output_brisque[0].append(dic_PnPProx["BRISQUE_output"])
-            dic_APnP = np.load(path_result + "Average_PnP_k_0/noise_"+noise+"/annealing_number_16/dict_"+str(i)+"_results.npy", allow_pickle=True).item()
-            output_psnr[1].append(dic_APnP["PSNR_output"])
-            output_ssim[1].append(dic_APnP["SSIM_output"])
-            output_lpips[1].append(dic_APnP["LPIPS_output"])
-            output_brisque[1].append(dic_APnP["BRISQUE_output"])
-            dic_APnPProx = np.load(path_result + "Average_PnP_Prox_k_0/noise_"+noise+"/annealing_number_16/dict_"+str(i)+"_results.npy", allow_pickle=True).item()
-            output_psnr[2].append(dic_APnPProx["PSNR_output"])
-            output_ssim[2].append(dic_APnPProx["SSIM_output"])
-            output_lpips[2].append(dic_APnPProx["LPIPS_output"])
-            output_brisque[2].append(dic_APnPProx["BRISQUE_output"])
+        output_psnr = [[],[]]
+        output_ssim = [[],[]]
+        output_lpips = [[],[]]
+        output_brisque = [[],[]]
+        for i in tqdm(range(m)):
+            for j in range(n):
+                dic_RED = np.load(path_result + "PnP_Prox_k_"+str(i)+"/noise_"+noise+"/annealing_number_16/dict_"+str(j)+"_results.npy", allow_pickle=True).item()
+                output_psnr[0].append(dic_RED["PSNR_output"])
+                output_ssim[0].append(dic_RED["SSIM_output"])
+                output_lpips[0].append(dic_RED["LPIPS_output"])
+                output_brisque[0].append(dic_RED["BRISQUE_output"])
+                dic_APnP = np.load(path_result + "Average_PnP_k_"+str(i)+"/noise_"+noise+"/annealing_number_16/dict_"+str(j)+"_results.npy", allow_pickle=True).item()
+                output_psnr[1].append(dic_APnP["PSNR_output"])
+                output_ssim[1].append(dic_APnP["SSIM_output"])
+                output_lpips[1].append(dic_APnP["LPIPS_output"])
+                output_brisque[1].append(dic_APnP["BRISQUE_output"])
     
         output_psnr = np.array(output_psnr)
         output_ssim = np.array(output_ssim)
         output_lpips = np.array(output_lpips)
         output_brisque = np.array(output_brisque)
-        print("PnP_Prox PSNR/SSIM/LPIPS/BRISQUE : {:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[0]),np.mean(output_ssim[0]),np.mean(output_lpips[0]),np.mean(output_brisque[0])))
-        print("Average_PnP PSNR/SSIM/LPIPS/BRISQUE :{:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[1]),np.mean(output_ssim[1]),np.mean(output_lpips[1]),np.mean(output_brisque[1])))
-        print("Average_PnP_Prox PSNR/SSIM/LPIPS/BRISQUE :{:.2f} / {:.2f} / {:.2f} / {:.2f}".format(np.mean(output_psnr[2]),np.mean(output_ssim[2]),np.mean(output_lpips[2]),np.mean(output_brisque[2])))
+        print("RED PSNR/SSIM/LPIPS/BRISQUE : {:.2f} & {:.2f} & {:.2f} & {:.2f}".format(np.mean(output_psnr[0]),np.mean(output_ssim[0]),np.mean(output_lpips[0]),np.mean(output_brisque[0])))
+        print("Average PnP PSNR/SSIM/LPIPS/BRISQUE : {:.2f} & {:.2f} & {:.2f} & {:.2f}".format(np.mean(output_psnr[1]),np.mean(output_ssim[1]),np.mean(output_lpips[1]),np.mean(output_brisque[1])))
+
 
 if pars.table_number == 2:
     #generate the result of inpainting for table of result on CBSD68 dataset.
@@ -962,4 +959,72 @@ if pars.fig_number == 10:
         ax.set_title(r"$\sigma_{m-1} = "+"{}$".format(std_end_name[i]), fontsize=21)
             
     fig.savefig(path_figure+'/All_results_std_end_Average_PnP.png')
+    plt.show()
+
+
+
+if pars.fig_number == 11:
+    # Generate a figure with various initialisation of Average PnP
+    path_result = "/beegfs/mrenaud/Result_Average_PnP/deblurring/set3c/Average_PnP_k_0/noise_10.0/"
+
+    init_name = ["oracle", "blur", "random"]
+    name_fig_list = ["Oracle $x_0$", "Blur $x_0$", "Random $x_0$"]
+
+    n = len(init_name) + 1
+    m = 2
+
+    size_title = 25
+    size_label = 19
+
+    #size of the black rectangle
+    height = 22
+    width = 210
+
+    fig = plt.figure(figsize = (n*5, m*5))
+    gs = gridspec.GridSpec(2, n, hspace = 0.15, wspace = 0.05)
+    for i, name in enumerate(init_name):
+        if i ==2:
+            width = 220
+        dic_APnP = np.load(path_result + "im_init_"+name+"/annealing_number_16/dict_0_results.npy", allow_pickle=True).item()
+
+        APnP = (dic_APnP["Deblur"], dic_APnP["PSNR_output"], dic_APnP["SSIM_output"], dic_APnP["LPIPS_output"], dic_APnP["BRISQUE_output"])
+        Init = dic_APnP["Init"]
+        GT = dic_APnP["GT"]
+        k = dic_APnP["kernel"]
+        Blur = (dic_APnP["Blur"], dic_APnP["PSNR_blur"], dic_APnP["SSIM_blur"], dic_APnP["LPIPS_blur"], dic_APnP["BRISQUE_blur"])
+
+        if i == 0:
+            ax = plt.subplot(gs[0, 0])
+            ax.imshow(Init)
+            ax.axis('off')
+            ax.set_title("Ground Truth", fontsize=size_title)
+
+            ax = plt.subplot(gs[1, 0])
+            im = Blur
+            c = 100
+            k_resize = cv2.resize(k, dsize =(c,c), interpolation=cv2.INTER_CUBIC)
+            im[0][-k_resize.shape[0]:,:k_resize.shape[1]] = k_resize[:,:,None]*np.ones(3)[None,None,:] / np.max(k_resize)
+            ax.imshow(im[0])
+            rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+            ax.add_patch(plt.Rectangle(**rect_params))
+            text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': size_label, 'va': 'top', 'ha': 'left'}
+            ax.annotate(**text_params)
+            ax.set_title("Observation", fontsize=size_title)
+            ax.axis('off')
+
+        ax = plt.subplot(gs[0, i+1])
+        ax.imshow(Init)
+        ax.axis('off')
+        ax.set_title(name_fig_list[i], fontsize=size_title)
+
+        ax = plt.subplot(gs[1, i+1])
+        im = APnP
+        ax.imshow(im[0])
+        rect_params = {'xy': (0, 0), 'width': width, 'height': height, 'linewidth': 1, 'edgecolor': 'black', 'facecolor': 'black'}
+        ax.add_patch(plt.Rectangle(**rect_params))
+        text_params = {'xy': (5, 5), 'text': "{:.2f}/{:.2f}/{:.2f}/{:.2f}".format(im[1], im[2], im[3], im[4]), 'color': 'white', 'fontsize': size_label, 'va': 'top', 'ha': 'left'}
+        ax.annotate(**text_params)
+        ax.axis('off')
+            
+    fig.savefig(path_figure+'/initialisation_sensitivity.png')
     plt.show()
