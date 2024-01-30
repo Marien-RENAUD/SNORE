@@ -18,3 +18,4 @@ PnP_restoration/SR/
 PnP_restoration/denoise/
 datasets/DRUNET/
 *.zip
+**/__pycache__
