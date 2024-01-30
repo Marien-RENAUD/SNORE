@@ -8,7 +8,7 @@ This code is made to test in practice for various inverse problems (deblurring, 
 
 ## Prerequisites
 
-To installe libraries of the correct version please run the following command
+To installe libraries of correct versions please run the following command
 ```
 pip install -r requirements.txt
 ```
