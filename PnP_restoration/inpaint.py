@@ -27,7 +27,7 @@ brisque = BRISQUE(url=False)
 # }
 
 # # # # Initialize sweep by passing in config.
-# sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP_inpainting")
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project="SNORE_inpainting")
 
 def inpaint():
     parser = ArgumentParser()
@@ -53,35 +53,35 @@ def inpaint():
     PnP_module.sigma_denoiser = PnP_module.std_end
 
     if PnP_module.std_end == None:
-        if PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP':
+        if PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE':
             PnP_module.std_end = 5. / 255.
-        if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+        if PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED':
             PnP_module.sigma_denoiser = 10. / 255.
     if PnP_module.maxitr == None:
         PnP_module.maxitr = 500
-    if PnP_module.std_0 == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
+    if PnP_module.std_0 == None and (PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE'):
         PnP_module.std_0 = 50. /255.
-    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
+    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'SNORE_Prox':
         PnP_module.stepsize = 1.
-    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'Average_PnP':
+    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'SNORE':
         PnP_module.stepsize = .5
-    if PnP_module.lamb == None and PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+    if PnP_module.lamb == None and PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED':
         PnP_module.lamb = 0.15
-    if PnP_module.hparams.opt_alg == 'PnP_GD':
+    if PnP_module.hparams.opt_alg == 'RED':
         PnP_module.hparams.n_init = 100
         PnP_module.hparams.stepsize = 0.5
-    if PnP_module.lamb_0 == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
+    if PnP_module.lamb_0 == None and (PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE'):
         PnP_module.lamb_0 = 0.15
-    if PnP_module.lamb_end == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
+    if PnP_module.lamb_end == None and PnP_module.hparams.opt_alg == 'SNORE_Prox':
         PnP_module.lamb_end = 0.15
-    if PnP_module.lamb_end == None and  PnP_module.hparams.opt_alg == 'Average_PnP':
+    if PnP_module.lamb_end == None and  PnP_module.hparams.opt_alg == 'SNORE':
         PnP_module.lamb_end = 0.4
 
     if hparams.use_wandb:
-        if PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP':
+        if PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE':
             PnP_module.hparams.lamb_end = PnP_module.lamb_end = wandb.config.lamb_end
             PnP_module.hparams.std_end = PnP_module.std_end = wandb.config.std_end /255.
-        if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
+        if PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED':
             PnP_module.hparams.lamb = PnP_module.lamb = wandb.config.lamb
             PnP_module.hparams.sigma_denoiser = PnP_module.sigma_denoiser = wandb.config.std_end /255.
         PnP_module.maxitr = wandb.config.maxitr
@@ -95,7 +95,7 @@ def inpaint():
         input_paths = os_sorted([os.path.join(input_path,p) for p in os.listdir(input_path)])
 
     #create the folder to save experimental results
-    exp_out_path = "../../Result_Average_PnP"
+    exp_out_path = "../../Result_SNORE"
     if not os.path.exists(exp_out_path):
         os.mkdir(exp_out_path)
     exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)

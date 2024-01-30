@@ -28,7 +28,7 @@ brisque = BRISQUE(url=False)
 # }
 
 # # # # Initialize sweep by passing in config.
-# sweep_id = wandb.sweep(sweep=sweep_configuration, project="Average_PnP")
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project="SNORE")
 
 def deblur():
 
@@ -102,11 +102,11 @@ def deblur():
 
             PnP_module.lamb, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.maxitr, PnP_module.std_0, PnP_module.std_end, PnP_module.stepsize = PnP_module.hparams.lamb, PnP_module.hparams.lamb_0, PnP_module.hparams.lamb_end, PnP_module.hparams.maxitr, PnP_module.hparams.std_0, PnP_module.hparams.std_end, PnP_module.hparams.stepsize
 
-            if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD' or PnP_module.hparams.opt_alg == 'Data_GD':
+            if PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED' or PnP_module.hparams.opt_alg == 'Data_GD':
                 PnP_module.lamb, PnP_module.std, PnP_module.maxitr, PnP_module.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
                 print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(PnP_module.hparams.noise_level_img, PnP_module.std, PnP_module.lamb))
 
-            if PnP_module.hparams.opt_alg == 'PnP_GD':
+            if PnP_module.hparams.opt_alg == 'RED':
                 if hparams.noise_level_img ==5. or hparams.noise_level_img==10.:
                     PnP_module.lamb = 0.2
                     PnP_module.std = 1.4 * hparams.noise_level_img /255.
@@ -115,7 +115,7 @@ def deblur():
                     PnP_module.sigma_denoiser = PnP_module.std = 1.8 * hparams.noise_level_img /255.
                 PnP_module.maxitr = 100
 
-            if PnP_module.hparams.opt_alg == 'Average_PnP' or PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'APnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP_Adam':
+            if PnP_module.hparams.opt_alg == 'SNORE' or PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'ARED_Prox' or PnP_module.hparams.opt_alg == 'SNORE_Adam':
                 if PnP_module.std_0 == None:
                     PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
                 if PnP_module.std_end == None:
@@ -134,7 +134,7 @@ def deblur():
                 PnP_module.std = wandb.config.std * hparams.noise_level_img /255.
 
             #create the folder to save experimental results
-            exp_out_path = "../../Result_Average_PnP"
+            exp_out_path = "../../Result_SNORE"
             if not os.path.exists(exp_out_path):
                 os.mkdir(exp_out_path)
             exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)

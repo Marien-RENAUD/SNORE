@@ -197,7 +197,7 @@ class PnP_restoration():
         '''
 
         self.sf = sf
-        if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+        if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox":
             self.hparams.use_backtracking = False
             self.hparams.early_stopping = False
 
@@ -205,7 +205,7 @@ class PnP_restoration():
             y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list, lamb_tab, std_tab = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
-        if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "Data_GD"):
+        if (self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED" or self.hparams.opt_alg == "Data_GD"):
             if self.hparams.stepsize is None:
                 self.stepsize = 1 / self.lamb
             else:
@@ -334,7 +334,7 @@ class PnP_restoration():
                 x_old = x
                 
                 # The 50 first steps are special for inpainting
-                if (self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD") and self.hparams.degradation_mode == 'inpainting':
+                if (self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED") and self.hparams.degradation_mode == 'inpainting':
                     if self.hparams.inpainting_init and i < self.hparams.n_init:
                         self.std = 50. /255.
                         use_backtracking = False
@@ -344,7 +344,7 @@ class PnP_restoration():
                         use_backtracking = self.hparams.use_backtracking
                         early_stopping = self.hparams.early_stopping
                 
-                if self.hparams.opt_alg == "PnP_GD" and self.hparams.degradation_mode == 'deblurring' and self.hparams.noise_level_img == 20.:
+                if self.hparams.opt_alg == "RED" and self.hparams.degradation_mode == 'deblurring' and self.hparams.noise_level_img == 20.:
                     if i < self.hparams.n_init:
                         self.std = 50. /255.
                         use_backtracking = False
@@ -366,8 +366,8 @@ class PnP_restoration():
                     Dg=torch.tensor(0).float()
                     f, F = self.calculate_F(x, img_tensor, g=g)
 
-                if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "PnP_GD" or self.hparams.opt_alg == "APnP_Prox":
-                    if self.hparams.opt_alg == "APnP_Prox":
+                if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED" or self.hparams.opt_alg == "ARED_Prox":
+                    if self.hparams.opt_alg == "ARED_Prox":
                         num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
                         if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
                             self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
@@ -382,9 +382,9 @@ class PnP_restoration():
                     # Gradient step
                     z = x_old - self.stepsize * self.lamb * Dg
                     # Data-fidelity step
-                    if self.hparams.opt_alg == "PnP_Prox" or self.hparams.opt_alg == "APnP_Prox":
+                    if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "ARED_Prox":
                         x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                    if self.hparams.opt_alg == "PnP_GD":
+                    if self.hparams.opt_alg == "RED":
                         x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
                     y = z # output image is the output of the denoising step
                     if self.hparams.use_hard_constraint:
@@ -392,7 +392,7 @@ class PnP_restoration():
                     # Calculate Objective
                     f, F = self.calculate_F(x, img_tensor, g=g)
 
-                if self.hparams.opt_alg == "Average_PnP" or self.hparams.opt_alg == "Average_PnP_Prox":
+                if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox":
                     # stepsize = self.stepsize_order * (sigma_tab / self.hparams.noise_level_img)**2
                     # num_itr_each_ann = self.maxitr // self.hparams.annealing_number
                     x_old = x
@@ -423,9 +423,9 @@ class PnP_restoration():
                     g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
                     # Total-Gradient step
                     z = x_old - self.stepsize * self.lamb * Dg
-                    if self.hparams.opt_alg == "Average_PnP":
+                    if self.hparams.opt_alg == "SNORE":
                         x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
-                    if self.hparams.opt_alg == "Average_PnP_Prox":
+                    if self.hparams.opt_alg == "SNORE_Prox":
                         x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
                     # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
                     # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
@@ -437,7 +437,7 @@ class PnP_restoration():
                     y = x # output image is the output of the denoising step
                     
                 
-                if self.hparams.opt_alg == "Average_PnP_Adam":
+                if self.hparams.opt_alg == "SNORE_Adam":
                     x_old = x
                     t = i + 1
 
@@ -785,5 +785,5 @@ class PnP_restoration():
         parser.add_argument('--weight_Dg', type=float, default=1.)
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
-        parser.add_argument('--opt_alg', dest='opt_alg', choices=['Average_PnP', 'Average_PnP_Adam', 'Data_GD', 'Average_PnP_Prox', 'PnP_Prox', 'APnP_Prox', 'PnP_GD', 'PnP_SGD'], help='Specify optimization algorithm')
+        parser.add_argument('--opt_alg', dest='opt_alg', choices=['SNORE', 'SNORE_Adam', 'Data_GD', 'SNORE_Prox', 'RED_Prox', 'ARED_Prox', 'RED', 'PnP_SGD'], help='Specify optimization algorithm')
         return parser
