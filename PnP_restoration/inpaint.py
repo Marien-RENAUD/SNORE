@@ -20,7 +20,7 @@ brisque = BRISQUE(url=False)
 #     "name": "sweep",
 #     "metric": {"goal": "minimize", "name": "output_lpips"},
 #     "parameters": {
-#         "lamb": {"values" : [0.2, 0.1, 0.3, 0.4, 0.25, 0.15]},
+#         "lamb_end": {"values" : [0.4, 0.5, 0.6, 0.3, 0.7]},
 #         "std_end": {"values" : [5.]},
 #         "maxitr" : {"values" : [500]},
 #     },
@@ -72,13 +72,14 @@ def inpaint():
         PnP_module.hparams.stepsize = 0.5
     if PnP_module.lamb_0 == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
         PnP_module.lamb_0 = 0.15
-    if PnP_module.lamb_end == None and (PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP'):
+    if PnP_module.lamb_end == None and PnP_module.hparams.opt_alg == 'Average_PnP_Prox':
         PnP_module.lamb_end = 0.15
+    if PnP_module.lamb_end == None and  PnP_module.hparams.opt_alg == 'Average_PnP':
+        PnP_module.lamb_end = 0.4
 
     if hparams.use_wandb:
         if PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP':
-            PnP_module.hparams.lamb_0 = PnP_module.lamb_0 = wandb.config.lamb
-            PnP_module.hparams.lamb_end = PnP_module.lamb_end = wandb.config.lamb
+            PnP_module.hparams.lamb_end = PnP_module.lamb_end = wandb.config.lamb_end
             PnP_module.hparams.std_end = PnP_module.std_end = wandb.config.std_end /255.
         if PnP_module.hparams.opt_alg == 'PnP_Prox' or PnP_module.hparams.opt_alg == 'PnP_GD':
             PnP_module.hparams.lamb = PnP_module.lamb = wandb.config.lamb

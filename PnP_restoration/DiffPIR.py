@@ -298,6 +298,7 @@ def restore():
                 'SSIM_blur' : ssim(np.clip(tensor2array(x_true), 0, 1), np.clip(tensor2array(y), 0, 1), data_range = 1, channel_axis = 2),
                 'LPIPS_blur' : loss_lpips.forward(x_true, y).item(),
                 'BRISQUE_blur' : brisque.score(np.clip(tensor2array(y), 0, 1)),
+                'Output' : np.clip(tensor2array(x), 0, 1),
                 'SSIM_output' : output_ssim,
                 'PSNR_output' : output_psnr,
                 'LPIPS_output' : output_lpips,

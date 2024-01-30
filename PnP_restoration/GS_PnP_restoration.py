@@ -343,6 +343,16 @@ class PnP_restoration():
                         self.std = self.sigma_denoiser
                         use_backtracking = self.hparams.use_backtracking
                         early_stopping = self.hparams.early_stopping
+                
+                if self.hparams.opt_alg == "PnP_GD" and self.hparams.degradation_mode == 'deblurring' and self.hparams.noise_level_img == 20.:
+                    if i < self.hparams.n_init:
+                        self.std = 50. /255.
+                        use_backtracking = False
+                        early_stopping = False
+                    else :
+                        self.std = self.sigma_denoiser
+                        use_backtracking = self.hparams.use_backtracking
+                        early_stopping = self.hparams.early_stopping
 
                 if self.hparams.opt_alg == "Data_GD":
                     z = x_old

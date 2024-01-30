@@ -22,12 +22,8 @@ brisque = BRISQUE(url=False)
 #     "name": "sweep",
 #     "metric": {"goal": "minimize", "name": "output_lpips"},
 #     "parameters": {
-#         "lamb_0": {"values" : [0.1, 0.05, 0.15]},
-#         "lamb_end": {"values" : [1.]},
-#         "stepsize_order" : {"values" : [0.1]},
-#         "std_0" : {"values" : [1.8]},
-#         "std_end" : {"values" : [0.5]},
-#         "maxitr" : {"values" : [800]},
+#         "std" : {"values" : [1., 1.4, 1.2]},
+#         "lamb": {"values" : [0.2]},
 #     },
 # }
 
@@ -110,6 +106,15 @@ def deblur():
                 PnP_module.lamb, PnP_module.std, PnP_module.maxitr, PnP_module.thres_conv = get_gaussian_noise_parameters(hparams.noise_level_img, PnP_module.hparams, k_index=k_index, degradation_mode='deblur')
                 print('GS-DRUNET deblurring with image sigma:{:.3f}, model sigma:{:.3f}, lamb:{:.3f} \n'.format(PnP_module.hparams.noise_level_img, PnP_module.std, PnP_module.lamb))
 
+            if PnP_module.hparams.opt_alg == 'PnP_GD':
+                if hparams.noise_level_img ==5. or hparams.noise_level_img==10.:
+                    PnP_module.lamb = 0.2
+                    PnP_module.std = 1.4 * hparams.noise_level_img /255.
+                if hparams.noise_level_img == 20.:
+                    PnP_module.lamb = 0.3
+                    PnP_module.sigma_denoiser = PnP_module.std = 1.8 * hparams.noise_level_img /255.
+                PnP_module.maxitr = 100
+
             if PnP_module.hparams.opt_alg == 'Average_PnP' or PnP_module.hparams.opt_alg == 'Average_PnP_Prox' or PnP_module.hparams.opt_alg == 'APnP_Prox' or PnP_module.hparams.opt_alg == 'Average_PnP_Adam':
                 if PnP_module.std_0 == None:
                     PnP_module.std_0 = 1.8 * hparams.noise_level_img /255.
@@ -125,13 +130,8 @@ def deblur():
                     PnP_module.maxitr = 1500
         
             if hparams.use_wandb:
-                PnP_module.lamb_0 = wandb.config.lamb_0
-                PnP_module.lamb_end = wandb.config.lamb_end
-                PnP_module.stepsize_order = wandb.config.stepsize_order
-                PnP_module.std_0 = wandb.config.std_0 * hparams.noise_level_img /255.
-                PnP_module.std_end = wandb.config.std_end * hparams.noise_level_img / 255.
-                PnP_module.maxitr = wandb.config.maxitr
-                PnP_module.hparams.maxitr = wandb.config.maxitr
+                PnP_module.lamb = wandb.config.lamb
+                PnP_module.std = wandb.config.std * hparams.noise_level_img /255.
 
             #create the folder to save experimental results
             exp_out_path = "../../Result_Average_PnP"
