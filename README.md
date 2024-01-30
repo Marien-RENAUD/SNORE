@@ -51,7 +51,7 @@ It compute the SNORE restoration on images of CBSD10 dataset with a mask of prob
   - deblur.py : code for image deblurring with various methods including SNORE, SNORE_Prox, RED, RED_Prox
   - inpaint.py : code for image inpainting with various methods including SNORE, SNORE_Prox, RED, RED_Prox
   - DiffPIR.py : code for image restoration including deblurring and inpainting with DiffPIR. This implementation is inspired by the code of the Python library DeepInverse.
-  - GS_PnP_restoration.py : code to compute the optimization with various methods. Note that the optimization process is coded in this file. SNORE, SNORE_Prox, RED, RED_Prox have been qualify. We also provide code for SNORE_Adam (SNORE regularization optimized with ADAM), ARED_Prox (RED_Prox with an annealing procedure) and PnP_SGD (a stochastic gradient descent with a PnP regularization). However, these technics has not been qualify and studied in details, so it is possible that this implementation is not correct.
-  - SR.py : code for image super-resolution. Note that the current code is not adapted for each restoration methods.
+  - GS_PnP_restoration.py : code to compute the optimization with various methods. Note that the optimization process is coded in this file. SNORE, SNORE_Prox, RED, RED_Prox have been qualify. We also provide code for SNORE_Adam (SNORE regularization optimized with ADAM), ARED_Prox (RED_Prox with an annealing procedure) and PnP_SGD (a stochastic gradient descent with a PnP regularization). However, these technics has not been qualified and studied in details, so it is possible that this implementation is not correct.
+  - SR.py : code for image super-resolution. Note that the current code is not adapted for each restoration method.
 ```
 
