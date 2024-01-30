@@ -12,3 +12,7 @@ To installe libraries of correct versions please run the following command
 ```
 pip install -r requirements.txt
 ```
+
+
+
+<img src="images/set_of_results_deblurring.png" width="300" height="300" />
