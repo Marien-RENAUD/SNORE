@@ -1,8 +1,0 @@
-wandb_version: 1
-
-lamb_end:
-  value: 0.7
-maxitr:
-  value: 500
-std_end:
-  value: 5
