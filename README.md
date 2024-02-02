@@ -1,5 +1,6 @@
 # Stochastic deNOising REgularization (SNORE)
 
+Here are videos of SNORE iterative process for image deblurring and inpainting.
 <table>
   <tr>
     <td><img src="https://github.com/Marien-RENAUD/SNORE/blob/main/images/img_0_samples_video_deb.gif" width="150" height="225" loop=infinite/></td>
