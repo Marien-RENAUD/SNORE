@@ -1,5 +1,16 @@
 # Stochastic deNOising REgularization (SNORE)
 
+<table>
+  <tr>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/blob/main/images/img_0_samples_video_deb.gif" width="150" height="225" loop=infinite/></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/blob/main/images/img_1_samples_video_deb.gif" width="150" height="225" loop=infinite/></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/blob/main/images/img_0_samples_video_imp.gif" width="150" height="225" loop=infinite/></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/blob/main/images/img_1_samples_video_imp.gif" width="150" height="225" loop=infinite/></td>
+  </tr>
+</table>
+
+
+
 Code for the paper "Plug-and-Play image restoration with Stochastic deNOising REgularization"
 
 To develop this code, we use the code from the paper "Gradient Step Denoiser for convergent Plug-and-Play" published at ICLR 2022. [[github](https://github.com/samuro95/GSPnP)] and the code of the library DeepInverse.
