@@ -277,8 +277,8 @@ def deblur():
                         duration = int(1000 * 1 / fps)
                         im_list = []
                         for x in x_list[::10]:
-                            im_list.append(single2uint(rescale(x)))
-                        imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
+                            im_list.append(single2uint(np.clip(x, 0, 1)))
+                        imageio.v2.mimsave(save_mov_path+".gif", loop = True, im_list, duration=duration)
 
                     #save the result of the experiment
                     input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
