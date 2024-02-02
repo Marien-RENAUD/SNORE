@@ -4,6 +4,8 @@
   <tr>
     <td><img src="images/img_0_samples_video_deb.gif" width="200" height="300" /></td>
     <td><img src="images/img_1_samples_video_deb.gif" width="200" height="300" /></td>
+    <td><img src="images/img_0_samples_video_imp.gif" width="200" height="300" /></td>
+    <td><img src="images/img_1_samples_video_imp.gif" width="200" height="300" /></td>
   </tr>
 </table>
 
