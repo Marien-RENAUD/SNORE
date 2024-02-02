@@ -273,10 +273,10 @@ def deblur():
                     
                     if hparams.save_video:
                         save_mov_path = os.path.join(save_im_path, 'img_' + str(i) +"_samples_video")
-                        fps = 50
+                        fps = 30
                         duration = int(1000 * 1 / fps)
                         im_list = []
-                        for x in x_list:
+                        for x in x_list[::10]:
                             im_list.append(single2uint(rescale(x)))
                         imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
 

@@ -3,7 +3,7 @@ import numpy as np
 from collections import OrderedDict
 from argparse import ArgumentParser
 from GS_PnP_restoration import PnP_restoration
-from utils.utils_restoration import single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave, psnr, array2tensor, tensor2array
+from utils.utils_restoration import rescale, single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave, psnr, array2tensor, tensor2array
 from natsort import os_sorted
 import wandb
 import imageio
@@ -228,7 +228,7 @@ def inpaint():
                 fps = 50
                 duration = int(1000 * 1 / fps)
                 im_list = []
-                for x in x_list:
+                for x in x_list[::2]:
                     im_list.append(single2uint(rescale(x)))
                 imageio.v2.mimsave(save_mov_path+".gif", im_list, duration=duration)
 
