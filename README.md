@@ -2,10 +2,10 @@
 
 <table>
   <tr>
-    <td><img src="images/img_0_samples_video_deb.gif" width="150" height="225" /></td>
-    <td><img src="images/img_1_samples_video_deb.gif" width="150" height="225" /></td>
-    <td><img src="images/img_0_samples_video_imp.gif" width="150" height="225" /></td>
-    <td><img src="images/img_1_samples_video_imp.gif" width="150" height="225" /></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/tree/main/images/img_0_samples_video_deb.gif" width="150" height="225" /></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/tree/main/images/img_1_samples_video_deb.gif" width="150" height="225" /></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/tree/main/images/img_0_samples_video_imp.gif" width="150" height="225" /></td>
+    <td><img src="https://github.com/Marien-RENAUD/SNORE/tree/main/images/img_1_samples_video_imp.gif" width="150" height="225" /></td>
   </tr>
 </table>
 
