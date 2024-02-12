@@ -7,6 +7,7 @@ import torch
 from argparse import ArgumentParser
 from utils.utils_restoration import rgb2y, psnr, array2tensor, tensor2array
 from skimage.metrics import structural_similarity as ssim
+from skimage.restoration import estimate_sigma
 from lpips import LPIPS
 import sys
 from matplotlib.ticker import MaxNLocator
@@ -202,7 +203,7 @@ class PnP_restoration():
             self.hparams.early_stopping = False
 
         if extract_results:
-            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list, lamb_tab, std_tab = [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
+            y_list, z_list, x_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, f_list, Df_list, F_list, Psi_list, lamb_tab, std_tab, estimated_noise_list = [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []
 
         # initalize parameters
         if (self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED" or self.hparams.opt_alg == "Data_GD"):
@@ -377,6 +378,8 @@ class PnP_restoration():
                             self.lamb = self.lamb_end
                     if extract_results:
                         lamb_tab.append(self.lamb); std_tab.append(self.std)
+                        x_old_array = tensor2array(x_old)
+                        estimated_noise_list.append(estimate_sigma(x_old_array, average_sigmas=True))
                     # Gradient of the regularization term
                     _,g,Dg = self.denoise(x_old, self.std)
                     # Gradient step
@@ -414,9 +417,12 @@ class PnP_restoration():
                     # Regularization term
                     g_mean = torch.tensor([0]).to(self.device).float()
                     Dg_mean = torch.zeros(*x_old.size()).to(self.device)
-                    for _ in range(self.hparams.num_noise):
+                    for ite in range(self.hparams.num_noise):
                         noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device), generator = generator)
                         x_old_noise = x_old + noise
+                        if extract_results and ite==0:
+                            x_old_noise_array = tensor2array(x_old_noise)
+                            estimated_noise_list.append(estimate_sigma(x_old_noise_array, average_sigmas=True, channel_axis=-1))
                         _,g,Dg = self.denoise(x_old_noise, self.std)
                         g_mean += g
                         Dg_mean += Dg
@@ -549,7 +555,7 @@ class PnP_restoration():
         output_den_lpips = loss_lpips.forward(clean_img_tensor, output_den_img_tensor).item()
 
         if extract_results:
-            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab)
+            return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab), np.array(estimated_noise_list)
         else:
             return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i
 
@@ -570,8 +576,9 @@ class PnP_restoration():
         self.lip_algo = []
         self.lip_D = []
         self.lip_Dg = []
+        self.noise_estimated_list = []
 
-    def update_curves(self, x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab):
+    def update_curves(self, x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab, estimated_noise_list):
         self.F.append(F_list)
         self.f.append(f_list)
         self.g.append(g_list)
@@ -584,6 +591,7 @@ class PnP_restoration():
         self.std_tab = std_tab
         self.conv.append(np.array([(np.linalg.norm(x_list[k + 1] - x_list[k]) ** 2) for k in range(len(x_list) - 1)]) / np.sum(np.abs(x_list[0]) ** 2))
         self.lip_algo.append(np.sqrt(np.array([np.sum(np.abs(x_list[k + 1] - x_list[k]) ** 2) for k in range(1, len(x_list) - 1)]) / np.array([np.sum(np.abs(x_list[k] - x_list[k - 1]) ** 2) for k in range(1, len(x_list[:-1]))])))
+        self.noise_estimated_list.append(estimated_noise_list)
 
     def save_curves(self, save_path):
 
@@ -724,6 +732,15 @@ class PnP_restoration():
         plt.plot(self.std_tab, '-o')
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'Std_list.png'),bbox_inches="tight")
+
+        plt.figure(14)
+        fig, ax = plt.subplots()
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        for i in range(len(self.noise_estimated_list)):
+            plt.plot(self.noise_estimated_list[i], '-o')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        plt.savefig(os.path.join(save_path, 'estimated_noise.png'),bbox_inches="tight")
 
 
     def add_specific_args(parent_parser):

@@ -192,7 +192,7 @@ def inpaint():
 
         # PnP restoration
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
-            inpainted_im, _, output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips,_, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab = PnP_module.restore(mask_im, mask_im, input_im, mask, extract_results=True)        
+            inpainted_im, _, output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips,_, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab, estimated_noise_list = PnP_module.restore(mask_im, mask_im, input_im, mask, extract_results=True)        
         else:
             inpainted_im, _, output_psnr, output_ssim, output_lpips, output_brisque, _, _, _, _, _, _, _ = PnP_module.restore(mask_im, mask_im, input_im, mask)
 
@@ -208,7 +208,7 @@ def inpaint():
 
         if hparams.extract_curves:
             # Create curves
-            PnP_module.update_curves(x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab)
+            PnP_module.update_curves(x_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, Dg_list, g_list, F_list, f_list, lamb_tab, std_tab, estimated_noise_list)
 
         if hparams.extract_images:
             # Save images
@@ -270,7 +270,8 @@ def inpaint():
                     'output_den_psnr' : output_den_psnr, 
                     'output_den_ssim' : output_den_ssim, 
                     'output_den_lpips' : output_den_lpips,
-                    'output_den_brisque' : output_den_brisque, 
+                    'output_den_brisque' : output_den_brisque,
+                    'estimated_noise_list' : estimated_noise_list,
                 }
             np.save(os.path.join(exp_out_path, 'dict_' + str(i) + '_results'), dict)
         
