@@ -25,6 +25,8 @@ To installe libraries of correct versions please run the following command
 pip install -r requirements.txt
 ```
 
+Download pretrained checkpoint https://plmbox.math.cnrs.fr/f/ab6829cb933743848bef/?dl=1 for color denoising and save it as ```GS_denoising/ckpts/GSDRUNet.ckpt```
+
 ## Experiments
 
 Example of experiments are provided in the file PnP_restoration/experiments.sh.
