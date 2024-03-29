@@ -1,8 +1,0 @@
-wandb_version: 1
-
-beta:
-  value: 0.01
-lamb:
-  value: 0.8
-std:
-  value: 1
