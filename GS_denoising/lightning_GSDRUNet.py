@@ -47,6 +47,7 @@ class GradMatch(pl.LightningModule):
 
     def __init__(self, hparams):
         super().__init__()
+        self.validation_step_outputs = []
 
         self.save_hyperparameters(hparams)
         if self.hparams.grayscale : 
@@ -203,10 +204,12 @@ class GradMatch(pl.LightningModule):
                     cv2.imwrite(save_dir + '/denoised/' + str(batch_idx) + '.png', denoised)
                     cv2.imwrite(save_dir + '/clean/' + str(batch_idx) + '.png', clean)
                     cv2.imwrite(save_dir + '/noisy/' + str(batch_idx) + '.png', noisy)
-
+                    
+        self.validation_step_outputs.append(batch_dict)
         return batch_dict
 
-    def on_validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
+        outputs = self.validation_step_outputs
 
         sigma_list = self.hparams.sigma_list_test
         for i, sigma in enumerate(sigma_list):
@@ -225,8 +228,14 @@ class GradMatch(pl.LightningModule):
                 if self.hparams.get_spectral_norm:
                     res_max_SN.append(x["max_jacobian_norm_" + str(sigma)])
                     res_mean_SN.append(x["mean_jacobian_norm_" + str(sigma)])
+
             avg_psnr_sigma = torch.stack(res_psnr).mean()
-            avg_Dg_norm = torch.stack(res_Dg).mean()
+            self.log('val/val_psnr', avg_psnr_sigma)
+            
+            if res_Dg is not None and len(res_Dg) > 0 :
+                avg_Dg_norm = torch.stack(res_Dg).mean()
+                self.log('val/val_Dg_norm_sigma=' + str(sigma), avg_Dg_norm)
+
             if self.hparams.get_regularization:
                 avg_s = torch.stack(res_g).mean()
                 self.log('val/val_g_sigma=' + str(sigma), avg_s)
@@ -238,8 +247,8 @@ class GradMatch(pl.LightningModule):
                 res_max_SN = np.array([el.item() for el in res_max_SN])
                 np.save('res_max_SN_sigma=' + str(sigma) + '.npy', res_max_SN)
                 plt.hist(res_max_SN, bins='auto', label='s = ' + str(sigma), alpha=0.25)
-            self.log('val/val_psnr_sigma=' + str(sigma), avg_psnr_sigma)
-            self.log('val/val_Dg_norm_sigma=' + str(sigma), avg_Dg_norm)
+            
+            
         if self.hparams.get_spectral_norm:
             plt.grid(True)
             plt.legend()
@@ -248,6 +257,8 @@ class GradMatch(pl.LightningModule):
         if self.hparams.get_gradient_norm:
             gradient_norm = np.max(np.array([x["max_gradient_norm"].item() for x in outputs]))
             self.log('val/max_gradient_norm', gradient_norm)
+        
+        self.validation_step_outputs.clear()
 
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx)

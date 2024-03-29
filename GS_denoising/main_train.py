@@ -49,15 +49,15 @@ if __name__ == '__main__':
 
     checkpoint_callback = ModelCheckpoint(dirpath=f"ckpts/{hparams.name}/", # where the ckpt will be saved
                                       save_top_k=5,
-                                      monitor='val/avg_psnr', # ckpt will be save according to the validation loss that you need to calculate on the validation step when you train your model
+                                      monitor='val/val_psnr', # ckpt will be save according to the validation loss that you need to calculate on the validation step when you train your model
                                       mode="max" # validation loos need to be min
-                                      ) 
+                                      )
 
 
     from pytorch_lightning.callbacks import LearningRateMonitor
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
 
-    max_epochs = 1200
+    max_epochs = 5 #1200 - 762
     
     if hparams.resume_from_checkpoint:
         trainer = pl.Trainer(logger=tb_logger, val_check_interval=hparams.val_check_interval,

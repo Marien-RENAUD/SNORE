@@ -12,10 +12,10 @@ venv/
 *.gz
 *.npy
 *.pyc
-PnP_restoration/deblurring/
-PnP_restoration/inpainting/
 PnP_restoration/SR/
 PnP_restoration/denoise/
+PnP_restoration/pnp_ula_images/
+PnP_restoration/pnpula_experiment_rgb
 datasets/DRUNET/
 *.zip
 **/__pycache__

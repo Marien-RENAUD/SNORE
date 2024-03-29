@@ -5,6 +5,7 @@ from scipy import ndimage
 from argparse import ArgumentParser
 from utils.utils_restoration import rescale, psnr, array2tensor, tensor2array, get_gaussian_noise_parameters, create_out_dir, single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave
 from skimage.metrics import structural_similarity as ssim
+from skimage.restoration import estimate_sigma
 from lpips import LPIPS
 from natsort import os_sorted
 from GS_PnP_restoration import PnP_restoration
@@ -22,8 +23,9 @@ brisque = BRISQUE(url=False)
 #     "name": "sweep",
 #     "metric": {"goal": "minimize", "name": "output_lpips"},
 #     "parameters": {
-#         "std" : {"values" : [1., 1.4, 1.2]},
-#         "lamb": {"values" : [0.2]},
+#         "std" : {"values" : [1.]},
+#         "lamb": {"values" : [0.5]},
+#         "beta" : {"values" : [0.01, 0.02, 0.05, 1.6]},
 #     },
 # }
 
@@ -114,6 +116,19 @@ def deblur():
                     PnP_module.lamb = 0.3
                     PnP_module.sigma_denoiser = PnP_module.std = 1.8 * hparams.noise_level_img /255.
                 PnP_module.maxitr = 100
+            
+            if PnP_module.hparams.opt_alg == 'PnP_SGD':
+                if PnP_module.lamb == None:
+                    PnP_module.lamb = .5
+                if PnP_module.std_end == None:
+                    PnP_module.std = 1. * hparams.noise_level_img /255.
+                else:
+                    PnP_module.std = PnP_module.std_end / 255.
+                if PnP_module.maxitr == None:
+                    PnP_module.maxitr = 1000
+                if PnP_module.stepsize == None:
+                    PnP_module.stepsize = 0.1
+                PnP_module.beta = .01
 
             if PnP_module.hparams.opt_alg == 'SNORE' or PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'ARED_Prox' or PnP_module.hparams.opt_alg == 'SNORE_Adam':
                 if PnP_module.std_0 == None:
@@ -131,6 +146,7 @@ def deblur():
         
             if hparams.use_wandb:
                 PnP_module.lamb = wandb.config.lamb
+                PnP_module.beta = wandb.config.beta
                 PnP_module.std = wandb.config.std * hparams.noise_level_img /255.
 
             #create the folder to save experimental results
@@ -284,6 +300,7 @@ def deblur():
                     input_im_tensor, blur_im_tensor = array2tensor(input_im).float(), array2tensor(blur_im).float()
                     dict = {
                             'GT' : input_im,
+                            'estimated_noise_GT' : estimate_sigma(input_im, average_sigmas=True, channel_axis=-1),
                             'BRISQUE_GT' : brisque.score(input_im),
                             'Deblur' : deblur_im,
                             'Blur' : blur_im,

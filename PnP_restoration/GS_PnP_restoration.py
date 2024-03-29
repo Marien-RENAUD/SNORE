@@ -16,6 +16,7 @@ from scipy import ndimage
 from tqdm import tqdm
 from time import time
 from brisque import BRISQUE
+# from bm3d import bm3d
 
 loss_lpips = LPIPS(net='alex', version='0.1')
 brisque = BRISQUE(url=False)
@@ -39,6 +40,7 @@ class PnP_restoration():
         parser2 = GradMatch.add_optim_specific_args(parser2)
         hparams = parser2.parse_known_args()[0]
         hparams.act_mode = self.hparams.act_mode_denoiser
+        hparams.grayscale = self.hparams.grayscale
         self.denoiser_model = GradMatch(hparams)
         checkpoint = torch.load(self.hparams.pretrained_checkpoint, map_location=self.device)
         self.denoiser_model.load_state_dict(checkpoint['state_dict'],strict=False)
@@ -54,6 +56,8 @@ class PnP_restoration():
             x = (x - mintmp) / (maxtmp - mintmp)
         elif self.hparams.clip_for_denoising:
             x = torch.clamp(x,0,1)
+            
+        # if self.denoiser_type == "GSDenoiser":
         torch.set_grad_enabled(True)
         Dg, N, g = self.denoiser_model.calculate_grad(x, sigma)
         torch.set_grad_enabled(False)
@@ -63,7 +67,14 @@ class PnP_restoration():
             N = N * (maxtmp - mintmp) + mintmp
         Dx = x - weight * Dg
         return Dx, g, Dg
-
+        
+        # if self.denoiser_type == "BM3D":
+        #     print("sigma :", sigma)
+        #     x = tensor2array(x)
+        #     xBM3D = np.atleast_3d(x)# upgrade to 3D tensor
+        #     Dx = bm3d(xBM3D,sigma)
+        #     Dx = array2tensor(Dx)
+        #     return Dx
 
     def initialize_prox(self, img, degradation):
         '''
@@ -97,12 +108,22 @@ class PnP_restoration():
         return px
 
     def data_fidelity_grad(self, x, y):
-        if self.hparams.degradation_mode == 'deblurring':
-            return utils_sr.grad_solution_L2(x, y, self.k_tensor, self.sf)
-        elif self.hparams.degradation_mode == 'inpainting':
-            return 2 * self.M * (x - y)
+        """
+        Calculate the gradient of the data-fidelity term.
+        :param x: Point where to evaluate F
+        :param y: Degraded image
+        """
+        if self.hparams.noise_model == 'gaussian':
+            if self.hparams.degradation_mode == 'deblurring':
+                return utils_sr.grad_solution_L2(x, y, self.k_tensor, self.sf)
+            elif self.hparams.degradation_mode == 'inpainting':
+                return 2 * self.M * (x - y)
+            else:
+                raise ValueError('degradation not implemented')
+        elif self.hparams.noise_model == 'speckle':
+            return self.hparams.L*(1-torch.exp(y-x))
         else:
-            raise ValueError('degradation not implemented')   
+            raise ValueError('noise model not implemented')
 
     def data_fidelity_grad_step(self, x, y, stepsize):
         '''
@@ -124,6 +145,8 @@ class PnP_restoration():
             y = utils_sr.G(y, self.k_tensor, sf=self.sf)
         elif self.hparams.degradation_mode == 'inpainting':
             y = self.M * y
+        elif self.hparams.degradation_mode == 'despeckle':
+            y = y
         else:
             raise ValueError('degradation not implemented')
         return y  
@@ -155,6 +178,8 @@ class PnP_restoration():
             f = 0.5 * torch.norm(img - deg_y, p=2) ** 2
         elif self.hparams.noise_model == 'poisson':
             f = (img*torch.log(img/deg_y + 1e-15) + deg_y - img).sum()
+        elif self.hparams.noise_model == 'speckle':
+            f = self.hparams.L*(deg_y + torch.exp(img - deg_y)).sum()
         return f
 
     def calculate_regul(self,x, g=None):
@@ -196,9 +221,8 @@ class PnP_restoration():
         :param extract_results: Extract information for subsequent image or curve saving
         :param sf: Super-resolution factor
         '''
-
         self.sf = sf
-        if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox":
+        if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox" or self.hparams.opt_alg == "PnP_SGD":
             self.hparams.use_backtracking = False
             self.hparams.early_stopping = False
 
@@ -217,13 +241,6 @@ class PnP_restoration():
         img_tensor = array2tensor(img).to(self.device) # for GPU computations (if GPU available)
         self.initialize_prox(img_tensor, degradation) # prox calculus that can be done outside of the loop
 
-        if self.hparams.opt_alg == "PnP_SGD":
-            self.lamb = 1.
-            self.std = 20. / 255.
-            L_tot = (self.lamb/self.std**2 + 1 / self.hparams.noise_level_img**2)
-            delta_stable = 2 / L_tot
-            self.stepsize = delta_stable / 6
-
         # Initialization of the algorithm
         x0 = array2tensor(init_im).to(self.device)
 
@@ -231,7 +248,8 @@ class PnP_restoration():
             x0 = self.At(x0)
         if self.hparams.use_hard_constraint:
             x0 = torch.clamp(x0, 0, 1)
-        x0 = self.data_fidelity_prox_step(x0, img_tensor, self.stepsize)
+        if self.hparams.degradation_mode != "despeckle":
+            x0 = self.data_fidelity_prox_step(x0, img_tensor, self.stepsize)
         x = x0
 
         if extract_results:  # extract np images and PSNR values
@@ -239,6 +257,8 @@ class PnP_restoration():
             current_x_psnr = psnr(clean_img, out_x)
             if self.hparams.print_each_step:
                 print('current x PSNR : ', current_x_psnr)
+                print('min:', np.min(out_x))
+                print('max:', np.max(out_x))
             psnr_tab.append(current_x_psnr)
             x_list.append(out_x)
 
@@ -246,54 +266,286 @@ class PnP_restoration():
         F = float('inf')
         self.backtracking_check = True
         
-        if self.hparams.opt_alg == "PnP_SGD":
-            i = 0
-            psnr_down = -float("inf")
-            psnr_up = current_x_psnr
-            while i < 200:
-                x_old = x
-                if i % 50 == 0:
-                    imsave('deblurring/test_x_' + str(i) + '.png', single2uint(tensor2array(x_old.cpu())))
-                x_denoised,g,Dg = self.denoise(x_old, self.std)
-                if i % 50 == 0:
-                    imsave('deblurring/test_xdenoised_' + str(i) + '.png', single2uint(tensor2array(x_denoised.cpu())))
-                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-                x = x_old - self.stepsize * self.lamb * Dg / self.std**2 - self.stepsize * self.data_fidelity_grad(x_old, img_tensor) + self.stepsize * noise
-                z = x
+        # if self.hparams.opt_alg == "PnP_SGD":
+        #     i = 0
+        #     psnr_down = -float("inf")
+        #     psnr_up = current_x_psnr
+        #     while i < 200:
+        #         x_old = x
+        #         if i % 50 == 0:
+        #             imsave('deblurring/test_x_' + str(i) + '.png', single2uint(tensor2array(x_old.cpu())))
+        #         x_denoised,g,Dg = self.denoise(x_old, self.std)
+        #         if i % 50 == 0:
+        #             imsave('deblurring/test_xdenoised_' + str(i) + '.png', single2uint(tensor2array(x_denoised.cpu())))
+        #         noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
+        #         x = x_old - self.stepsize * self.lamb * Dg / self.std**2 - self.stepsize * self.data_fidelity_grad(x_old, img_tensor) + self.stepsize * noise
+        #         z = x.copy()
 
-                f, F = self.calculate_F(x_old, img_tensor, g=g)
-                out_z = tensor2array(z.cpu())
-                out_x = tensor2array(x.cpu())
-                current_z_psnr = psnr(clean_img, out_z)
-                current_x_psnr = psnr(clean_img, out_x)
-                if self.hparams.print_each_step:
-                    print('iteration : ', i)
-                    print('current z PSNR : ', current_z_psnr)
-                    print('current x PSNR : ', current_x_psnr)
-                    print('current F : ', F)
-                x_list.append(out_x)
-                z_list.append(out_z)
-                g_list.append(g.cpu().item())
-                Dg_list.append(torch.norm(Dg).cpu().item())
-                psnr_tab.append(current_z_psnr)
-                current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
-                ssim_tab.append(current_z_ssim)
-                F_list.append(F)
-                f_list.append(f)
-                psnr_down = psnr_up
-                psnr_up = current_z_psnr
-                i += 1
+        #         f, F = self.calculate_F(x_old, img_tensor, g=g)
+        #         out_z = tensor2array(z.cpu())
+        #         out_x = tensor2array(x.cpu())
+        #         current_z_psnr = psnr(clean_img, out_z)
+        #         current_x_psnr = psnr(clean_img, out_x)
+        #         if self.hparams.print_each_step:
+        #             print('iteration : ', i)
+        #             print('current z PSNR : ', current_z_psnr)
+        #             print('current x PSNR : ', current_x_psnr)
+        #             print('current F : ', F)
+        #         x_list.append(out_x)
+        #         z_list.append(out_z)
+        #         g_list.append(g.cpu().item())
+        #         Dg_list.append(torch.norm(Dg).cpu().item())
+        #         psnr_tab.append(current_z_psnr)
+        #         current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
+        #         ssim_tab.append(current_z_ssim)
+        #         F_list.append(F)
+        #         f_list.append(f)
+        #         psnr_down = psnr_up
+        #         psnr_up = current_z_psnr
+        #         i += 1
 
-            print("number of burn-in iteration : ", i)
-            i = 1
-            while i < 401:
-                delta_i = self.stepsize/(i**0.8)
+        #     print("number of burn-in iteration : ", i)
+        #     i = 1
+        #     while i < 401:
+        #         delta_i = self.stepsize/(i**0.8)
+        #         x_old = x
+        #         _,g,Dg = self.denoise(x_old, self.std)
+        #         z = x_old - delta_i * self.lamb * Dg / self.std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
+        #         noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
+        #         x = z + delta_i * noise
+        #         f, F = self.calculate_F(x_old, img_tensor, g=g)
+        #         if extract_results:
+        #             out_z = tensor2array(z.cpu())
+        #             out_x = tensor2array(x.cpu())
+        #             current_z_psnr = psnr(clean_img, out_z)
+        #             current_x_psnr = psnr(clean_img, out_x)
+        #             if self.hparams.print_each_step:
+        #                 print('iteration : ', i)
+        #                 print('current z PSNR : ', current_z_psnr)
+        #                 print('current x PSNR : ', current_x_psnr)
+        #             x_list.append(out_x)
+        #             z_list.append(out_z)
+        #             g_list.append(g.cpu().item())
+        #             Dg_list.append(torch.norm(Dg).cpu().item())
+        #             psnr_tab.append(current_z_psnr)
+        #             current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
+        #             ssim_tab.append(current_z_ssim)
+        #             F_list.append(F)
+        #             f_list.append(f)
+        #         i += 1
+        #     y = x
+
+        self.total_dist = 0
+
+        mom = torch.zeros(*x.size()).to(self.device)
+        mom_2 = torch.zeros(*x.size()).to(self.device)
+        beta_1 = 0.9
+        beta_2 = 0.999
+        eps = 1e-8
+
+        #for reproducibility
+        generator = torch.Generator(device = self.device)
+        if self.hparams.seed != None:
+            generator.manual_seed(self.hparams.seed)
+        else:
+            generator.manual_seed(0)
+
+        for i in tqdm(range(self.maxitr)):
+
+            F_old = F
+            x_old = x
+            
+            # The 50 first steps are special for inpainting
+            if (self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED") and self.hparams.degradation_mode == 'inpainting':
+                if self.hparams.inpainting_init and i < self.hparams.n_init:
+                    self.std = 50. /255.
+                    use_backtracking = False
+                    early_stopping = False
+                else :
+                    self.std = self.sigma_denoiser
+                    use_backtracking = self.hparams.use_backtracking
+                    early_stopping = self.hparams.early_stopping
+            
+            if self.hparams.opt_alg == "RED" and self.hparams.degradation_mode == 'deblurring' and self.hparams.noise_level_img == 20.:
+                if i < self.hparams.n_init:
+                    self.std = 50. /255.
+                    use_backtracking = False
+                    early_stopping = False
+                else :
+                    self.std = self.sigma_denoiser
+                    use_backtracking = self.hparams.use_backtracking
+                    early_stopping = self.hparams.early_stopping
+
+            if self.hparams.opt_alg == "RED" and self.hparams.degradation_mode == 'despeckle':
+                self.std = self.sigma_denoiser
+                use_backtracking = self.hparams.use_backtracking
+                early_stopping = self.hparams.early_stopping
+
+            if self.hparams.opt_alg == "Data_GD":
+                z = x_old
+                # Data-fidelity step
+                x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                y = z # output image is the output of the denoising step
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                g=torch.tensor(0).float()
+                Dg=torch.tensor(0).float()
+                f, F = self.calculate_F(x, img_tensor, g=g)
+
+            if self.hparams.opt_alg == "PnP_SGD":
                 x_old = x
+                if extract_results:
+                    lamb_tab.append(self.lamb); std_tab.append(self.std)
+                # Regularization term
+                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device), generator = generator)
                 _,g,Dg = self.denoise(x_old, self.std)
-                z = x_old - delta_i * self.lamb * Dg / self.std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
-                noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-                x = z + delta_i * noise
-                f, F = self.calculate_F(x_old, img_tensor, g=g)
+                # Total-Gradient step
+                z = x_old - self.stepsize * self.lamb * Dg
+                x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor) + self.stepsize * self.beta * noise
+                # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
+                # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
+                # Hard constraint
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                f, F = self.calculate_F(x, img_tensor, g=g)
+                y = x # output image is the output of the denoising step
+
+
+            if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED" or self.hparams.opt_alg == "ARED_Prox":
+                if self.hparams.opt_alg == "ARED_Prox":
+                    num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                    if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                        self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                    if i >= self.maxitr - self.hparams.last_itr:
+                        self.std = self.std_end
+                        self.lamb = self.lamb_end
+                if extract_results:
+                    lamb_tab.append(self.lamb); std_tab.append(self.std)
+                    x_old_array = tensor2array(x_old)
+                    if self.hparams.grayscale:
+                        estimated_noise_list.append(estimate_sigma(x_old_array, channel_axis=-1))
+                    else:
+                        estimated_noise_list.append(estimate_sigma(x_old_array, average_sigmas=True))
+                # Gradient of the regularization term
+                _,g,Dg = self.denoise(x_old, self.std)
+                # Gradient regularization step
+                z = x_old - self.stepsize * self.lamb * Dg
+                # Data-fidelity step
+                if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "ARED_Prox":
+                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                if self.hparams.opt_alg == "RED":
+                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                y = z # output image is the output of the denoising step
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                f, F = self.calculate_F(x, img_tensor, g=g)
+
+            if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox":
+                # stepsize = self.stepsize_order * (sigma_tab / self.hparams.noise_level_img)**2
+                # num_itr_each_ann = self.maxitr // self.hparams.annealing_number
+                x_old = x
+                num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                # lamb_schedule = np.logspace(np.log10(self.lamb_0), np.log10(self.lamb_end), self.maxitr // num_itr_each_ann).astype(np.float32)
+                if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                    # self.std = sigma_tab[i // num_itr_each_ann]
+                    # self.stepsize = stepsize[i // num_itr_each_ann]
+                    self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                    # self.lamb = lamb_schedule[i // num_itr_each_ann]
+                    self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                if i >= self.maxitr - self.hparams.last_itr:
+                    self.std = self.std_end
+                    self.lamb = self.lamb_end
+                if extract_results:
+                    lamb_tab.append(self.lamb); std_tab.append(self.std)
+                # if i >= 3*self.maxitr//4:
+                #     self.stepsize = self.hparams.stepsize / i**0.8
+                # Regularization term
+                g_mean = torch.tensor([0]).to(self.device).float()
+                Dg_mean = torch.zeros(*x_old.size()).to(self.device)
+                for ite in range(self.hparams.num_noise):
+                    noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device), generator = generator)
+                    x_old_noise = x_old + noise
+                    if extract_results and ite==0:
+                        x_old_noise_array = tensor2array(x_old_noise)
+                        estimated_noise_list.append(estimate_sigma(x_old_noise_array, average_sigmas=True, channel_axis=-1))
+                    _,g,Dg = self.denoise(x_old_noise, self.std)
+                    g_mean += g
+                    Dg_mean += Dg
+                g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
+                # Total-Gradient step
+                z = x_old - self.stepsize * self.lamb * Dg
+                if self.hparams.opt_alg == "SNORE":
+                    x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
+                if self.hparams.opt_alg == "SNORE_Prox":
+                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
+                # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
+                # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
+                # Hard constraint
+                if self.hparams.use_hard_constraint:
+                    x = torch.clamp(x,0,1)
+                # Calculate Objective
+                f, F = self.calculate_F(x, img_tensor, g=g)
+                y = x # output image is the output of the denoising step
+                
+            if self.hparams.opt_alg == "SNORE_Adam":
+                x_old = x
+                t = i + 1
+
+                num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
+                if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
+                    # self.std = sigma_tab[i // num_itr_each_ann]
+                    # self.stepsize = stepsize[i // num_itr_each_ann]
+                    self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
+                    self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
+                if i >= self.maxitr - self.hparams.last_itr:
+                    self.std = self.std_end
+                    self.lamb = self.lamb_end
+                if extract_results:
+                    lamb_tab.append(self.lamb); std_tab.append(self.std)
+                g_mean = torch.tensor([0]).to(self.device).float()
+                Dg_mean = torch.zeros(*x_old.size()).to(self.device)
+                for _ in range(self.hparams.num_noise):
+                    noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
+                    x_old_noise = x_old + noise
+                    _,g,Dg = self.denoise(x_old_noise, self.std)
+                    g_mean += g
+                    Dg_mean += Dg
+                g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
+                # Adam optimizer steps
+                Grad_total = self.data_fidelity_grad(x_old, img_tensor) + self.lamb * Dg
+                mom = beta_1 * mom + (1 - beta_1) * Grad_total
+                mom_2 = beta_2 * mom_2 + (1 - beta_2) * Grad_total * Grad_total
+                mom_unbiased = mom / (1 - beta_1**t)
+                mom_2_unbiased = mom_2 / (1 - beta_2**t)
+                x = x_old - self.stepsize * mom_unbiased / (torch.sqrt(mom_2_unbiased) + eps)
+                # Calculate Objective
+                f, F = self.calculate_F(x, img_tensor, g=g)
+
+                y = x # output image is the output of the denoising step
+                z = x # To be modified, for no errors in the followinf code
+
+            self.total_dist += torch.sum(torch.abs(x_old - x))
+
+            # Backtracking
+            if self.hparams.use_backtracking :
+                diff_x = (torch.norm(x - x_old, p=2) ** 2)
+                diff_F = F_old - F
+                if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
+                    self.stepsize = self.hparams.eta_backtracking * self.stepsize
+                    self.backtracking_check = False
+                    print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
+                else :
+                    self.backtracking_check = True
+                # if (abs(self.stepsize) < 1e-7):
+                #     print(f'Convergence reached at iteration {i}')
+                #     break
+
+            if self.backtracking_check : # if the backtracking condition is satisfied
+                # Logging
                 if extract_results:
                     out_z = tensor2array(z.cpu())
                     out_x = tensor2array(x.cpu())
@@ -303,6 +555,9 @@ class PnP_restoration():
                         print('iteration : ', i)
                         print('current z PSNR : ', current_z_psnr)
                         print('current x PSNR : ', current_x_psnr)
+                        print('min :', np.min(out_z))
+                        print('max :', np.max(out_z))
+                        print('current F : ', F)
                     x_list.append(out_x)
                     z_list.append(out_z)
                     g_list.append(g.cpu().item())
@@ -310,249 +565,53 @@ class PnP_restoration():
                     psnr_tab.append(current_z_psnr)
                     current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
                     ssim_tab.append(current_z_ssim)
+                    if not(self.hparams.grayscale):
+                        brisque_tab.append(brisque.score(out_z))
+                    clean_img_tensor, out_z_tensor = array2tensor(clean_img).float(), array2tensor(out_z).float()
+                    if self.hparams.lpips and not(self.hparams.grayscale):
+                        current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
+                        lpips_tab.append(current_z_lpips)
                     F_list.append(F)
                     f_list.append(f)
-                i += 1
-            y = x
 
-        if self.hparams.opt_alg != "PnP_SGD":
-            mom = torch.zeros(*x.size()).to(self.device)
-            mom_2 = torch.zeros(*x.size()).to(self.device)
-            beta_1 = 0.9
-            beta_2 = 0.999
-            eps = 1e-8
+                # check decrease of data_fidelity 
+                if self.hparams.early_stopping : 
+                    if self.hparams.crit_conv == 'cost':
+                        if (abs(diff_F)/abs(F) < self.hparams.thres_conv):
+                            print(f'Convergence reached at iteration {i}')
+                            break
+                    elif self.hparams.crit_conv == 'residual':
+                        diff_x = torch.norm(x - x_old, p=2)
+                        if diff_x/torch.norm(x) < self.hparams.thres_conv:
+                            print(f'Convergence reached at iteration {i}')
+                            break
 
-            #for reproducibility
-            generator = torch.Generator(device = self.device)
-            if self.hparams.seed != None:
-                generator.manual_seed(self.hparams.seed)
-            else:
-                generator.manual_seed(0)
+                # i += 1 # next iteration
 
-            for i in tqdm(range(self.maxitr)):
-
-                F_old = F
-                x_old = x
-                
-                # The 50 first steps are special for inpainting
-                if (self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED") and self.hparams.degradation_mode == 'inpainting':
-                    if self.hparams.inpainting_init and i < self.hparams.n_init:
-                        self.std = 50. /255.
-                        use_backtracking = False
-                        early_stopping = False
-                    else :
-                        self.std = self.sigma_denoiser
-                        use_backtracking = self.hparams.use_backtracking
-                        early_stopping = self.hparams.early_stopping
-                
-                if self.hparams.opt_alg == "RED" and self.hparams.degradation_mode == 'deblurring' and self.hparams.noise_level_img == 20.:
-                    if i < self.hparams.n_init:
-                        self.std = 50. /255.
-                        use_backtracking = False
-                        early_stopping = False
-                    else :
-                        self.std = self.sigma_denoiser
-                        use_backtracking = self.hparams.use_backtracking
-                        early_stopping = self.hparams.early_stopping
-
-                if self.hparams.opt_alg == "Data_GD":
-                    z = x_old
-                    # Data-fidelity step
-                    x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                    y = z # output image is the output of the denoising step
-                    if self.hparams.use_hard_constraint:
-                        x = torch.clamp(x,0,1)
-                    # Calculate Objective
-                    g=torch.tensor(0).float()
-                    Dg=torch.tensor(0).float()
-                    f, F = self.calculate_F(x, img_tensor, g=g)
-
-                if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "RED" or self.hparams.opt_alg == "ARED_Prox":
-                    if self.hparams.opt_alg == "ARED_Prox":
-                        num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
-                        if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
-                            self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
-                            self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
-                        if i >= self.maxitr - self.hparams.last_itr:
-                            self.std = self.std_end
-                            self.lamb = self.lamb_end
-                    if extract_results:
-                        lamb_tab.append(self.lamb); std_tab.append(self.std)
-                        x_old_array = tensor2array(x_old)
-                        estimated_noise_list.append(estimate_sigma(x_old_array, average_sigmas=True))
-                    # Gradient of the regularization term
-                    _,g,Dg = self.denoise(x_old, self.std)
-                    # Gradient step
-                    z = x_old - self.stepsize * self.lamb * Dg
-                    # Data-fidelity step
-                    if self.hparams.opt_alg == "RED_Prox" or self.hparams.opt_alg == "ARED_Prox":
-                        x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                    if self.hparams.opt_alg == "RED":
-                        x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
-                    y = z # output image is the output of the denoising step
-                    if self.hparams.use_hard_constraint:
-                        x = torch.clamp(x,0,1)
-                    # Calculate Objective
-                    f, F = self.calculate_F(x, img_tensor, g=g)
-
-                if self.hparams.opt_alg == "SNORE" or self.hparams.opt_alg == "SNORE_Prox":
-                    # stepsize = self.stepsize_order * (sigma_tab / self.hparams.noise_level_img)**2
-                    # num_itr_each_ann = self.maxitr // self.hparams.annealing_number
-                    x_old = x
-                    num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
-                    # lamb_schedule = np.logspace(np.log10(self.lamb_0), np.log10(self.lamb_end), self.maxitr // num_itr_each_ann).astype(np.float32)
-                    if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
-                        # self.std = sigma_tab[i // num_itr_each_ann]
-                        # self.stepsize = stepsize[i // num_itr_each_ann]
-                        self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
-                        # self.lamb = lamb_schedule[i // num_itr_each_ann]
-                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
-                    if i >= self.maxitr - self.hparams.last_itr:
-                        self.std = self.std_end
-                        self.lamb = self.lamb_end
-                    if extract_results:
-                        lamb_tab.append(self.lamb); std_tab.append(self.std)
-                    # if i >= 3*self.maxitr//4:
-                    #     self.stepsize = self.hparams.stepsize / i**0.8
-                    # Regularization term
-                    g_mean = torch.tensor([0]).to(self.device).float()
-                    Dg_mean = torch.zeros(*x_old.size()).to(self.device)
-                    for ite in range(self.hparams.num_noise):
-                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device), generator = generator)
-                        x_old_noise = x_old + noise
-                        if extract_results and ite==0:
-                            x_old_noise_array = tensor2array(x_old_noise)
-                            estimated_noise_list.append(estimate_sigma(x_old_noise_array, average_sigmas=True, channel_axis=-1))
-                        _,g,Dg = self.denoise(x_old_noise, self.std)
-                        g_mean += g
-                        Dg_mean += Dg
-                    g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
-                    # Total-Gradient step
-                    z = x_old - self.stepsize * self.lamb * Dg
-                    if self.hparams.opt_alg == "SNORE":
-                        x = z - self.stepsize * self.data_fidelity_grad(x_old, img_tensor)
-                    if self.hparams.opt_alg == "SNORE_Prox":
-                        x = self.data_fidelity_prox_step(z, img_tensor, self.stepsize)
-                    # print("reg = ",torch.sum(torch.abs(self.lamb * Dg)))
-                    # print("data = ",torch.sum(torch.abs(self.data_fidelity_grad(x_old, img_tensor))))
-                    # Hard constraint
-                    if self.hparams.use_hard_constraint:
-                        x = torch.clamp(x,0,1)
-                    # Calculate Objective
-                    f, F = self.calculate_F(x, img_tensor, g=g)
-                    y = x # output image is the output of the denoising step
-                    
-                
-                if self.hparams.opt_alg == "SNORE_Adam":
-                    x_old = x
-                    t = i + 1
-
-                    num_itr_each_ann = (self.maxitr - self.hparams.last_itr) // self.hparams.annealing_number
-                    if  i < self.maxitr - self.hparams.last_itr and i % num_itr_each_ann == 0:
-                        # self.std = sigma_tab[i // num_itr_each_ann]
-                        # self.stepsize = stepsize[i // num_itr_each_ann]
-                        self.std =  self.std_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.std_end * (i / (self.maxitr - self.hparams.last_itr))
-                        self.lamb = self.lamb_0 * (1 - i / (self.maxitr - self.hparams.last_itr)) + self.lamb_end * (i / (self.maxitr - self.hparams.last_itr))
-                    if i >= self.maxitr - self.hparams.last_itr:
-                        self.std = self.std_end
-                        self.lamb = self.lamb_end
-                    if extract_results:
-                        lamb_tab.append(self.lamb); std_tab.append(self.std)
-                    g_mean = torch.tensor([0]).to(self.device).float()
-                    Dg_mean = torch.zeros(*x_old.size()).to(self.device)
-                    for _ in range(self.hparams.num_noise):
-                        noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = self.std*torch.ones(*x_old.size()).to(self.device))
-                        x_old_noise = x_old + noise
-                        _,g,Dg = self.denoise(x_old_noise, self.std)
-                        g_mean += g
-                        Dg_mean += Dg
-                    g, Dg = g_mean/self.hparams.num_noise, Dg_mean/self.hparams.num_noise
-                    # Adam optimizer steps
-                    Grad_total = self.data_fidelity_grad(x_old, img_tensor) + self.lamb * Dg
-                    mom = beta_1 * mom + (1 - beta_1) * Grad_total
-                    mom_2 = beta_2 * mom_2 + (1 - beta_2) * Grad_total * Grad_total
-                    mom_unbiased = mom / (1 - beta_1**t)
-                    mom_2_unbiased = mom_2 / (1 - beta_2**t)
-                    x = x_old - self.stepsize * mom_unbiased / (torch.sqrt(mom_2_unbiased) + eps)
-                    # Calculate Objective
-                    f, F = self.calculate_F(x, img_tensor, g=g)
-
-                    y = x # output image is the output of the denoising step
-                    z = x # To be modified, for no errors in the followinf code
-
-                # Backtracking
-                if self.hparams.use_backtracking :
-                    diff_x = (torch.norm(x - x_old, p=2) ** 2)
-                    diff_F = F_old - F
-                    if diff_F < (self.hparams.gamma_backtracking / self.stepsize) * diff_x :
-                        self.stepsize = self.hparams.eta_backtracking * self.stepsize
-                        self.backtracking_check = False
-                        print('backtracking : stepsize =', self.stepsize, 'diff_F=', diff_F)
-                    else :
-                        self.backtracking_check = True
-                    # if (abs(self.stepsize) < 1e-7):
-                    #     print(f'Convergence reached at iteration {i}')
-                    #     break
-
-                if self.backtracking_check : # if the backtracking condition is satisfied
-                    # Logging
-                    if extract_results:
-                        out_z = tensor2array(z.cpu())
-                        out_x = tensor2array(x.cpu())
-                        current_z_psnr = psnr(clean_img, out_z)
-                        current_x_psnr = psnr(clean_img, out_x)
-                        if self.hparams.print_each_step:
-                            print('iteration : ', i)
-                            print('current z PSNR : ', current_z_psnr)
-                            print('current x PSNR : ', current_x_psnr)
-                            print('current F : ', F)
-                        x_list.append(out_x)
-                        z_list.append(out_z)
-                        g_list.append(g.cpu().item())
-                        Dg_list.append(torch.norm(Dg).cpu().item())
-                        psnr_tab.append(current_z_psnr)
-                        current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
-                        ssim_tab.append(current_z_ssim)
-                        brisque_tab.append(brisque.score(out_z))
-                        clean_img_tensor, out_z_tensor = array2tensor(clean_img).float(), array2tensor(out_z).float()
-                        if self.hparams.lpips:
-                            current_z_lpips = loss_lpips.forward(clean_img_tensor, out_z_tensor).item()
-                            lpips_tab.append(current_z_lpips)
-                        F_list.append(F)
-                        f_list.append(f)
-
-                    # check decrease of data_fidelity 
-                    if self.hparams.early_stopping : 
-                        if self.hparams.crit_conv == 'cost':
-                            if (abs(diff_F)/abs(F) < self.hparams.thres_conv):
-                                print(f'Convergence reached at iteration {i}')
-                                break
-                        elif self.hparams.crit_conv == 'residual':
-                            diff_x = torch.norm(x - x_old, p=2)
-                            if diff_x/torch.norm(x) < self.hparams.thres_conv:
-                                print(f'Convergence reached at iteration {i}')
-                                break
-
-                    # i += 1 # next iteration
-
-                else : # if the backtracking condition is not satisfied
-                    x = x_old
-                    F = F_old
+            else : # if the backtracking condition is not satisfied
+                x = x_old
+                F = F_old
 
         output_img = tensor2array(y.cpu())
         output_psnr = psnr(clean_img, output_img)
         output_ssim = ssim(clean_img, output_img, data_range = 1, channel_axis = 2)
-        output_brisque = brisque.score(np.clip(output_img, 0, 1))
-        clean_img_tensor, output_img_tensor = array2tensor(clean_img).float(), array2tensor(output_img).float()
-        output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
+        if not(self.hparams.grayscale):
+            output_brisque = brisque.score(np.clip(output_img, 0, 1))
+            clean_img_tensor, output_img_tensor = array2tensor(clean_img).float(), array2tensor(output_img).float()
+            output_lpips = loss_lpips.forward(clean_img_tensor, output_img_tensor).item()
+        else:
+            output_brisque = output_lpips = 0
 
         Dy,_,_ = self.denoise(y, self.std)
         output_den_img = tensor2array(Dy.cpu())
         output_den_psnr = psnr(clean_img, output_den_img)
         output_den_ssim = ssim(clean_img, output_den_img, data_range = 1, channel_axis = 2)
-        output_den_brisque = brisque.score(np.clip(output_den_img, 0, 1))
         output_den_img_tensor = array2tensor(output_den_img).float()
-        output_den_lpips = loss_lpips.forward(clean_img_tensor, output_den_img_tensor).item()
+        if not(self.hparams.grayscale):
+            output_den_brisque = brisque.score(np.clip(output_den_img, 0, 1))
+            output_den_lpips = loss_lpips.forward(clean_img_tensor, output_den_img_tensor).item()
+        else:
+            output_den_brisque = output_den_lpips = 0
 
         if extract_results:
             return output_img, tensor2array(x0.cpu()), output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips, i, x_list, z_list, np.array(Dg_list), np.array(psnr_tab), np.array(ssim_tab), np.array(brisque_tab), np.array(lpips_tab), np.array(g_list), np.array(F_list), np.array(f_list), np.array(lamb_tab), np.array(std_tab), np.array(estimated_noise_list)
@@ -755,6 +814,7 @@ class PnP_restoration():
         parser.add_argument('--maxitr', type=int)
         parser.add_argument('--stepsize', type=float)
         parser.add_argument('--lamb', type=float)
+        parser.add_argument('--beta', type=float)
         parser.add_argument('--std_0', type=float)
         parser.add_argument('--std_end', type=float)
         parser.add_argument('--lamb_0', type=float)
@@ -802,5 +862,6 @@ class PnP_restoration():
         parser.add_argument('--weight_Dg', type=float, default=1.)
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')
+        parser.add_argument('--denoiser_type', type=str,default='GSDenoiser')
         parser.add_argument('--opt_alg', dest='opt_alg', choices=['SNORE', 'SNORE_Adam', 'Data_GD', 'SNORE_Prox', 'RED_Prox', 'ARED_Prox', 'RED', 'PnP_SGD'], help='Specify optimization algorithm')
         return parser

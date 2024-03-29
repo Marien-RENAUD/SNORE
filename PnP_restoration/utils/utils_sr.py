@@ -233,7 +233,7 @@ def prox_solution_L2(x, FB, FBC, F2B, FBFy, stepsize, sf):
     FX = (FR - FCBinvWBR) / alpha.unsqueeze(-1)
     Xest = ifft(FX)
     return Xest
-    
+
 
 def Wiener_filter(x, k, stepsize, sf):
     alpha = torch.tensor([1/stepsize]).repeat(1, 1, 1, 1).to(x.device)
