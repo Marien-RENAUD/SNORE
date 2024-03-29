@@ -15,7 +15,8 @@ venv/
 PnP_restoration/SR/
 PnP_restoration/denoise/
 PnP_restoration/pnp_ula_images/
-PnP_restoration/pnpula_experiment_rgb
+PnP_restoration/pnpula_experiment_rgb.py
+PnP_restoration/test_denoiser.py
 datasets/DRUNET/
 *.zip
 **/__pycache__
