@@ -1,0 +1,10 @@
+wandb_version: 1
+
+lamb:
+  value: 50
+maxitr:
+  value: 100
+std_end:
+  value: 10
+stepsize:
+  value: 0.005

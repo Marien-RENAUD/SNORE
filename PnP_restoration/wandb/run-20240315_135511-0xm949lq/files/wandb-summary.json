@@ -1,0 +1,1 @@
+{"std_0": null, "std_end": null, "lamb_0": null, "lamb_end": null, "stepsize": 0.01, "maxitr": 100, "output_psnr": 29.76960574275028, "output_ssim": 0.817419171333313, "output_lpips": NaN, "output_brisque": NaN, "_timestamp": 1710507324.4239805, "_runtime": 12.505385398864746, "_step": 0, "_wandb": {"runtime": 11}}

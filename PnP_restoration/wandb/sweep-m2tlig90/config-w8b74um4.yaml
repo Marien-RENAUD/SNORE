@@ -1,0 +1,6 @@
+wandb_version: 1
+
+lamb:
+  value: 0.1
+std:
+  value: 1.6
