@@ -71,7 +71,13 @@ It compute the SNORE restoration on images of CBSD10 dataset with a mask of prob
 
 ## Parameters
 ### Common parameter
-To use a parameters, for example "dataset_path", add to a function "python deblur.py" or "python inpaint.py" the command "--dataset_path "your_dataset_path""
+To use a parameters that is list below, here is some examples of command
+```
+python inpaint.py --dataset_name "CBSD10" --opt_alg "RED Prox" --lamb 0.1 --stepsize 10. --no_backtracking --no_early_stopping
+python deblur.py --dataset_name "set1c" --opt_alg "RED" --lamb 0.3 --sigma_denoiser 5.
+python SR.py --dataset_name "set3c" --opt_alg "PnP SGD" --beta 0.02 --lamb 0.5 --save_video --extract_curves --extract_images
+```
+
 - opt_alg : to choose the optimization algorithm, we implement Stochastique Denoising Regularization 'SNORE', Stochastique Denoising Regularization with a proximal data-fidelity 'SNORE Prox', ADAM algorithm apply on SNORE 'SNORE_Adam', a gradient descent without regularization 'Data_GD', Regularization by Denoising 'RED', Regularization by Denoising with a proximal data-fidelity 'RED Prox', Annealed Regularization by Denoising with a proximal data-fidelity 'ARED Prox', Plug-and-Play Stochastic Gradient Descent 'PnP_SGD'
 - dataset_path : the path of used datasets, by defaults the provided datasets in '../datasets'
 - gpu_number' : the index of the used gpu, by default 0
