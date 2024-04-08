@@ -69,3 +69,48 @@ It compute the SNORE restoration on images of CBSD10 dataset with a mask of prob
   - SR.py : code for image super-resolution. Note that the current code is only adapted for SNORE Prox and RED Prox.
 ```
 
+## Parameters
+### Common parameter
+To use a parameters, for example "dataset_path", add to a function "python deblur.py" or "python inpaint.py" the command "--dataset_path "your_dataset_path""
+- opt_alg : to choose the optimization algorithm, we implement Stochastique Denoising Regularization 'SNORE', Stochastique Denoising Regularization with a proximal data-fidelity 'SNORE Prox', ADAM algorithm apply on SNORE 'SNORE_Adam', a gradient descent without regularization 'Data_GD', Regularization by Denoising 'RED', Regularization by Denoising with a proximal data-fidelity 'RED Prox', Annealed Regularization by Denoising with a proximal data-fidelity 'ARED Prox', Plug-and-Play Stochastic Gradient Descent 'PnP_SGD'
+- dataset_path : the path of used datasets, by defaults the provided datasets in '../datasets'
+- gpu_number' : the index of the used gpu, by default 0
+- pretrained_checkpoint : weights of the GS Drunet denoiser, by default they are saved in the path '../GS_denoising/ckpts/GSDRUNet.ckpt'
+- im_init : to change the initialization, by default it is the observation of deblurring and inpainting (with value 0.5 on masked pixels). Can be change to "random" for a random initialization or "oracle" for the true image. This parameter is implemented for deblurring and inapinting.
+- noise_model : the noise model, by default 'gaussian', the 'speckle' noise model is also implemented.
+- dataset_name : the path of the dataset restore by our algorithm, by default 'set3c'
+- noise_level_img : the noise level of the observation
+- maxitr : to change the default number of iteration of the used algorithm
+- stepsize : to change the default stepsize of the used algorithm
+- lamb : to change the default regularization parameter
+- beta : to change the default parameter to control the amount of added noise in PnP SGD
+- std_0 : to change the default initial denoiser parameter for SNORE or SNORE Prox (with annealing)
+- std_end : to change the default final denoiser parameter for SNORE or SNORE Prox (with annealing)
+- lamb_0 : to change the default initial regularization parameter for SNORE or SNORE Prox (with annealing)
+- lamb_end : to change the default final regularization parameter for SNORE or SNORE Prox (with annealing)
+- num_noise : the number of random sample for the stochastic gradient approximation, increasing num_noise reduce the variance of the estimator and increse the computation cost, by default 1
+- annealing_number : the number of annealing level for SNORE or SNORE Prox, by default 16
+- last_itr : the number of final iterations with the final annealing parameters for SNORE or SNORE Prox
+- sigma_denoiser : to change the denoiser parameter for non-annealing algorithm
+- seed : to define a random seed to the sample during stochastic algorithm
+- lpips : to compute the lpips for each iteration, computationally expensive
+- no_backtracking : to cancel the use of backtracking for RED or RED Prox
+- extract_curves : to save curves of iterations, PSNR, SSIM, BRISQUE, F, f, g... during iterations
+- extract_images : to save images
+- save_video : to save a video of the iterations
+- print_each_step : to print at each step the optimization function value, the current PSNR, SSIM
+- no_data_term : to only optimize on the regularization
+- use_hard_constraint : projected at each step the restore image in [0,1]
+- use_wandb : use the library weights and biais
+- grayscale : to use a grayscale denoiser
+- no_early_stopping : to not use early stop for RED or RED Prox
+- exp_out_path : the path of output saving, by default create a folder outside the project in the path "../../Result_SNORE"
+
+
+
+
+
+
+
+
+
