@@ -1935,3 +1935,20 @@ if pars.fig_number == 18:
             
     fig.savefig(path_figure+'/various_results_despeckle.png')
     plt.show()
+
+if pars.table_number == 4:
+    #generate explored distances by different methods.
+
+    print("INPAINTING")
+    path_result = "/beegfs/mrenaud/Result_SNORE/inpainting/set4c/"
+
+    methods_name = ['RED', 'SNORE', 'RED_Prox', 'SNORE_Prox']
+    dist_table = [[] for i in range(len(methods_name))]
+    adresses_list = ["/noise_0/mask_prop_0.5/stepsize_None/annealing_number_16/", "/noise_0/mask_prop_0.5/annealing_number_16/", "/noise_0/mask_prop_0.5/annealing_number_16/", "/noise_0/mask_prop_0.5/annealing_number_16/"]
+    n = 4
+
+    for j, name in enumerate(methods_name):
+        for i in range(n):
+            dic = np.load(path_result + name + adresses_list[j] + "dict_"+str(i)+"_results.npy", allow_pickle=True).item()
+            dist_table[j].append(dic["dist_total"].cpu())
+        print(name + " total dist mean = ", np.mean(np.array(dist_table[j])))

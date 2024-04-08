@@ -50,48 +50,8 @@ def inpaint():
     # PnP_restoration class
     PnP_module = PnP_restoration(hparams)
 
-    PnP_module.lamb, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.maxitr, PnP_module.std_0, PnP_module.std_end, PnP_module.stepsize, PnP_module.beta = PnP_module.hparams.lamb, PnP_module.hparams.lamb_0, PnP_module.hparams.lamb_end, PnP_module.hparams.maxitr, PnP_module.hparams.std_0, PnP_module.hparams.std_end, PnP_module.hparams.stepsize, PnP_module.hparams.beta
-    PnP_module.sigma_denoiser = PnP_module.std_end
-
-    if PnP_module.std_end == None:
-        if PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE':
-            PnP_module.std_end = 5. / 255.
-        if PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED':
-            PnP_module.sigma_denoiser = 10. / 255.
-    if PnP_module.maxitr == None:
-        PnP_module.maxitr = 500
-    if PnP_module.std_0 == None and (PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE'):
-        PnP_module.std_0 = 50. /255.
-    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'SNORE_Prox':
-        PnP_module.stepsize = 1.
-    if PnP_module.stepsize == None and PnP_module.hparams.opt_alg == 'SNORE':
-        PnP_module.stepsize = .5
-    if PnP_module.lamb == None and PnP_module.hparams.opt_alg == 'RED_Prox' or PnP_module.hparams.opt_alg == 'RED':
-        PnP_module.lamb = 0.15
-    if PnP_module.hparams.opt_alg == 'RED':
-        PnP_module.hparams.n_init = 100
-        PnP_module.hparams.stepsize = 0.5
-    if PnP_module.lamb_0 == None and (PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE'):
-        PnP_module.lamb_0 = 0.15
-    if PnP_module.lamb_end == None and PnP_module.hparams.opt_alg == 'SNORE_Prox':
-        PnP_module.lamb_end = 0.15
-    if PnP_module.lamb_end == None and  PnP_module.hparams.opt_alg == 'SNORE':
-        PnP_module.lamb_end = 0.4
-    
-    if PnP_module.hparams.opt_alg == 'PnP_SGD':
-        if PnP_module.lamb == None:
-            PnP_module.lamb = .5
-        if PnP_module.std_end == None:
-            PnP_module.std = 2. * hparams.noise_level_img /255.
-        else:
-            PnP_module.std = PnP_module.std_end / 255.
-        if PnP_module.stepsize == None:
-            PnP_module.stepsize = .8
-        if PnP_module.beta == None:
-            PnP_module.beta = .01
-        if PnP_module.maxitr == None:
-            PnP_module.maxitr = 1000
-
+    # Definition of algorithms parameters
+    PnP_module.lamb, PnP_module.std, PnP_module.maxitr, PnP_module.thres_conv, PnP_module.stepsize, PnP_module.std_0, PnP_module.std_end, PnP_module.lamb_0, PnP_module.lamb_end, PnP_module.beta = get_parameters(hparams.noise_level_img, PnP_module.hparams, degradation_mode='inpainting')
     if hparams.use_wandb:
         if PnP_module.hparams.opt_alg == 'SNORE_Prox' or PnP_module.hparams.opt_alg == 'SNORE':
             PnP_module.hparams.lamb_end = PnP_module.lamb_end = wandb.config.lamb_end
@@ -110,80 +70,8 @@ def inpaint():
         input_paths = os_sorted([os.path.join(input_path,p) for p in os.listdir(input_path)])
 
     #create the folder to save experimental results
-    exp_out_path = "../../Result_SNORE"
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, hparams.degradation_mode)
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, hparams.dataset_name)
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, PnP_module.hparams.opt_alg)
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, "noise_"+str(PnP_module.hparams.noise_level_img))
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    if PnP_module.hparams.maxitr != None:
-        exp_out_path = os.path.join(exp_out_path, "maxitr_"+str(PnP_module.maxitr))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, "mask_prop_"+str(hparams.prop_mask))
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    if PnP_module.hparams.seed != None:
-        exp_out_path = os.path.join(exp_out_path, "seed_"+str(PnP_module.hparams.seed))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.stepsize != None:
-        exp_out_path = os.path.join(exp_out_path, "stepsize_"+str(PnP_module.stepsize))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.lamb_0 != None:
-        exp_out_path = os.path.join(exp_out_path, "lamb_0_"+str(PnP_module.hparams.lamb_0))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.lamb_end != None:
-        exp_out_path = os.path.join(exp_out_path, "lamb_end_"+str(PnP_module.hparams.lamb_end))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.std_0 != None:
-        exp_out_path = os.path.join(exp_out_path, "std_0_"+str(PnP_module.hparams.std_0))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.std_end != None:
-        exp_out_path = os.path.join(exp_out_path, "std_end_"+str(PnP_module.hparams.std_end))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.lamb != None:
-        exp_out_path = os.path.join(exp_out_path, "lamb_"+str(PnP_module.hparams.lamb))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.beta != None:
-        exp_out_path = os.path.join(exp_out_path, "beta_"+str(PnP_module.hparams.beta))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.sigma_denoiser != None:
-        exp_out_path = os.path.join(exp_out_path, "sigma_denoiser_"+str(PnP_module.hparams.sigma_denoiser))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.im_init != None:
-        exp_out_path = os.path.join(exp_out_path, "im_init_"+PnP_module.hparams.im_init)
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.no_data_term == True:
-        exp_out_path = os.path.join(exp_out_path, "no_data_term")
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.annealing_number != None:
-        exp_out_path = os.path.join(exp_out_path, "annealing_number_"+str(PnP_module.hparams.annealing_number))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
-    if PnP_module.hparams.num_noise != 1:
-        exp_out_path = os.path.join(exp_out_path, "num_noise_"+str(PnP_module.hparams.num_noise))
-        if not os.path.exists(exp_out_path):
-            os.mkdir(exp_out_path)
+    exp_out_path = hparams.exp_out_path
+    exp_out_path = create_out_dir(exp_out_path, hparams)
 
     test_results = OrderedDict()
     test_results['psnr'] = []
@@ -204,8 +92,6 @@ def inpaint():
             input_im_uint = imread_uint(input_paths[i],n_channels=1)
         else:
             input_im_uint = imread_uint(input_paths[i])
-        # if hparams.patch_size < min(input_im_uint.shape[0], input_im_uint.shape[1]):
-        #     input_im_uint = crop_center(input_im_uint, hparams.patch_size, hparams.patch_size)
         input_im = np.float32(input_im_uint / 255.)
         # Degraded image
         np.random.seed(0) #for reproductibility
@@ -223,10 +109,6 @@ def inpaint():
         else:
             init_im = mask_im
         
-        # no noise is added
-        # np.random.seed(seed=0)
-        # mask_im += np.random.normal(0, hparams.noise_level_img/255., mask_im.shape)
-
         # PnP restoration
         if hparams.extract_images or hparams.extract_curves or hparams.print_each_step:
             inpainted_im, _, output_psnr, output_ssim, output_lpips, output_brisque, output_den_img, output_den_psnr, output_den_ssim, output_den_brisque, output_den_img_tensor, output_den_lpips,_, x_list, z_list, Dg_list, psnr_tab, ssim_tab, brisque_tab, lpips_tab, g_list, F_list, f_list, lamb_tab, std_tab, estimated_noise_list = PnP_module.restore(mask_im, init_im, input_im, mask, extract_results=True)        
@@ -242,7 +124,6 @@ def inpaint():
             print('BRISQUE: {:.2f}'.format(output_brisque))
             lpips_list.append(output_lpips)
             brisque_list.append(output_brisque)
-        # psnrY_list.append(output_psnrY)
 
         if hparams.extract_curves:
             # Create curves

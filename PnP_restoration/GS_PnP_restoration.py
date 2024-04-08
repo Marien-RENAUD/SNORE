@@ -265,75 +265,6 @@ class PnP_restoration():
         diff_F = 1
         F = float('inf')
         self.backtracking_check = True
-        
-        # if self.hparams.opt_alg == "PnP_SGD":
-        #     i = 0
-        #     psnr_down = -float("inf")
-        #     psnr_up = current_x_psnr
-        #     while i < 200:
-        #         x_old = x
-        #         if i % 50 == 0:
-        #             imsave('deblurring/test_x_' + str(i) + '.png', single2uint(tensor2array(x_old.cpu())))
-        #         x_denoised,g,Dg = self.denoise(x_old, self.std)
-        #         if i % 50 == 0:
-        #             imsave('deblurring/test_xdenoised_' + str(i) + '.png', single2uint(tensor2array(x_denoised.cpu())))
-        #         noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-        #         x = x_old - self.stepsize * self.lamb * Dg / self.std**2 - self.stepsize * self.data_fidelity_grad(x_old, img_tensor) + self.stepsize * noise
-        #         z = x.copy()
-
-        #         f, F = self.calculate_F(x_old, img_tensor, g=g)
-        #         out_z = tensor2array(z.cpu())
-        #         out_x = tensor2array(x.cpu())
-        #         current_z_psnr = psnr(clean_img, out_z)
-        #         current_x_psnr = psnr(clean_img, out_x)
-        #         if self.hparams.print_each_step:
-        #             print('iteration : ', i)
-        #             print('current z PSNR : ', current_z_psnr)
-        #             print('current x PSNR : ', current_x_psnr)
-        #             print('current F : ', F)
-        #         x_list.append(out_x)
-        #         z_list.append(out_z)
-        #         g_list.append(g.cpu().item())
-        #         Dg_list.append(torch.norm(Dg).cpu().item())
-        #         psnr_tab.append(current_z_psnr)
-        #         current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
-        #         ssim_tab.append(current_z_ssim)
-        #         F_list.append(F)
-        #         f_list.append(f)
-        #         psnr_down = psnr_up
-        #         psnr_up = current_z_psnr
-        #         i += 1
-
-        #     print("number of burn-in iteration : ", i)
-        #     i = 1
-        #     while i < 401:
-        #         delta_i = self.stepsize/(i**0.8)
-        #         x_old = x
-        #         _,g,Dg = self.denoise(x_old, self.std)
-        #         z = x_old - delta_i * self.lamb * Dg / self.std**2 - delta_i * self.data_fidelity_grad(x_old, img_tensor)
-        #         noise = torch.normal(torch.zeros(*x_old.size()).to(self.device), std = torch.ones(*x_old.size()).to(self.device))
-        #         x = z + delta_i * noise
-        #         f, F = self.calculate_F(x_old, img_tensor, g=g)
-        #         if extract_results:
-        #             out_z = tensor2array(z.cpu())
-        #             out_x = tensor2array(x.cpu())
-        #             current_z_psnr = psnr(clean_img, out_z)
-        #             current_x_psnr = psnr(clean_img, out_x)
-        #             if self.hparams.print_each_step:
-        #                 print('iteration : ', i)
-        #                 print('current z PSNR : ', current_z_psnr)
-        #                 print('current x PSNR : ', current_x_psnr)
-        #             x_list.append(out_x)
-        #             z_list.append(out_z)
-        #             g_list.append(g.cpu().item())
-        #             Dg_list.append(torch.norm(Dg).cpu().item())
-        #             psnr_tab.append(current_z_psnr)
-        #             current_z_ssim = ssim(clean_img, out_z, data_range = 1, channel_axis = 2)
-        #             ssim_tab.append(current_z_ssim)
-        #             F_list.append(F)
-        #             f_list.append(f)
-        #         i += 1
-        #     y = x
 
         self.total_dist = 0
 
@@ -428,7 +359,7 @@ class PnP_restoration():
                     if self.hparams.grayscale:
                         estimated_noise_list.append(estimate_sigma(x_old_array, channel_axis=-1))
                     else:
-                        estimated_noise_list.append(estimate_sigma(x_old_array, average_sigmas=True))
+                        estimated_noise_list.append(estimate_sigma(x_old_array, average_sigmas=True, channel_axis=-1))
                 # Gradient of the regularization term
                 _,g,Dg = self.denoise(x_old, self.std)
                 # Gradient regularization step
@@ -801,7 +732,6 @@ class PnP_restoration():
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         plt.savefig(os.path.join(save_path, 'estimated_noise.png'),bbox_inches="tight")
 
-
     def add_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument('--dataset_path', type=str, default='../datasets')
@@ -859,6 +789,7 @@ class PnP_restoration():
         parser.set_defaults(grayscale=False)
         parser.add_argument('--no_early_stopping', dest='early_stopping', action='store_false')
         parser.set_defaults(early_stopping=True)
+        parser.add_argument('--exp_out_path', type=str, default="../../Result_SNORE")
         parser.add_argument('--weight_Dg', type=float, default=1.)
         parser.add_argument('--n_init', type=int, default=10)
         parser.add_argument('--act_mode_denoiser', type=str, default='E')

@@ -6,47 +6,208 @@ import cv2
 import os 
 
 
-def get_gaussian_noise_parameters(noise_level_img, hparams, k_index=0, degradation_mode='deblur'):
+def get_parameters(noise_level_img, hparams, k_index=0, degradation_mode='deblur'):
     '''
     Hyperparamers have been optimized for each algorithms at noise levels 0.01 0.03 and 0.05. For other noise levels, optimality is not guaranteed.
     '''
-    if degradation_mode == 'deblur' :
-        if hparams.lamb == None:
-            if k_index == 8 :
-                lamb = 0.075
-            elif k_index == 9 :
-                lamb = 0.075
-            else :
-                lamb = 0.1
-        else:
-            lamb = hparams.lamb
-        sigma_k_denoiser = 1.8
-        if hparams.thres_conv == None:
-            thres_conv = 1e-5
-        else:
-            thres_conv = hparams.thres_conv
-    if degradation_mode == 'SR' :
-        sigma_k_denoiser = 2.
-        thres_conv = 1e-6
-        lamb = 0.065
-    if hparams.sigma_denoiser == None:
-        sigma_denoiser = sigma_k_denoiser*noise_level_img
-    else:
-        sigma_denoiser = hparams.sigma_denoiser
-    if hparams.maxitr == None:
-        maxitr = 400
-    else:
-        maxitr = hparams.maxitr
-    return lamb, sigma_denoiser / 255., maxitr, thres_conv
+    lamb, lamb_0, lamb_end, maxitr, std_0, std_end, stepsize, sigma_denoiser, thres_conv, beta = hparams.lamb, hparams.lamb_0, hparams.lamb_end, hparams.maxitr, hparams.std_0, hparams.std_end, hparams.stepsize, hparams.sigma_denoiser, hparams.thres_conv, hparams.beta
+    std = sigma_denoiser
 
-def create_out_dir(degradation_mode, dataset_name) : 
-    exp_out_path = degradation_mode
+    if degradation_mode == 'deblur':
+        if hparams.opt_alg == 'RED_Prox' or hparams.opt_alg == 'RED' or hparams.opt_alg == 'Data_GD':
+            if lamb == None:
+                if k_index == 8 :
+                    lamb = 0.075
+                elif k_index == 9 :
+                    lamb = 0.075
+                else :
+                    lamb = 0.1
+            sigma_k_denoiser = 1.8
+            if thres_conv == None:
+                thres_conv = 1e-5
+            if sigma_denoiser == None:
+                sigma_denoiser = sigma_k_denoiser*noise_level_img
+            if maxitr == None:
+                maxitr = 400
+            std = sigma_denoiser / 255.
+        
+        if hparams.opt_alg == 'RED':
+            if hparams.noise_level_img == 5. or hparams.noise_level_img==10.:
+                if lamb == None:
+                    lamb = 0.2
+                if std == None:
+                    std = 1.4 * hparams.noise_level_img /255.
+            if hparams.noise_level_img == 20.:
+                if lamb == None:
+                    lamb = 0.3
+                if std == None:
+                    std = 1.8 * hparams.noise_level_img /255.
+            if maxitr == None:
+                maxitr = 100
+        
+        if hparams.opt_alg == 'PnP_SGD':
+            if lamb == None:
+                lamb = .5
+            if sigma_denoiser == None:
+                std = 1. * hparams.noise_level_img /255.
+            else:
+                std = sigma_denoiser / 255.
+            if maxitr == None:
+                maxitr = 1000
+            if stepsize == None:
+                stepsize = 0.1
+            beta = .01
+
+        if hparams.opt_alg == 'SNORE' or hparams.opt_alg == 'SNORE_Prox' or hparams.opt_alg == 'ARED_Prox' or hparams.opt_alg == 'SNORE_Adam':
+            if std_0 == None:
+                std_0 = 1.8 * hparams.noise_level_img /255.
+            if std_end == None:
+                std_end = 0.5 * hparams.noise_level_img / 255.
+            if stepsize == None:
+                stepsize = 0.1
+            if lamb_end == None:
+                lamb_end = 1.0
+            if lamb_0 == None:
+                lamb_0 = 0.1
+            if maxitr == None:
+                maxitr = 1500
+
+    if degradation_mode == 'inpainting':
+        if maxitr == None:
+            if hparams.opt_alg == 'PnP_SGD':
+                maxitr = 1000
+            else:
+                maxitr = 500
+        if std_end == None:
+            if hparams.opt_alg == 'SNORE_Prox' or hparams.opt_alg == 'SNORE':
+                std_end = 5. / 255.
+            if hparams.opt_alg == 'RED_Prox' or hparams.opt_alg == 'RED':
+                sigma_denoiser = 10. / 255.
+        if std_0 == None and (hparams.opt_alg == 'SNORE_Prox' or hparams.opt_alg == 'SNORE'):
+            std_0 = 50. /255.
+        if stepsize == None and hparams.opt_alg == 'SNORE_Prox':
+            stepsize = 1.
+        if stepsize == None and hparams.opt_alg == 'SNORE':
+            stepsize = .5
+        if lamb == None and hparams.opt_alg == 'RED_Prox' or hparams.opt_alg == 'RED':
+            lamb = 0.15
+        if hparams.opt_alg == 'RED':
+            hparams.n_init = 100
+            hparams.stepsize = 0.5
+        if lamb_0 == None and (hparams.opt_alg == 'SNORE_Prox' or hparams.opt_alg == 'SNORE'):
+            lamb_0 = 0.15
+        if lamb_end == None and hparams.opt_alg == 'SNORE_Prox':
+            lamb_end = 0.15
+        if lamb_end == None and  hparams.opt_alg == 'SNORE':
+            lamb_end = 0.4
+        
+        if hparams.opt_alg == 'PnP_SGD':
+            if lamb == None:
+                lamb = .5
+            if sigma_denoiser == None:
+                std = 2. * hparams.noise_level_img /255.
+            else:
+                std = sigma_denoiser / 255.
+            if stepsize == None:
+                stepsize = .8
+            if beta == None:
+                beta = .01
+
+    if degradation_mode == 'SR':
+        if hparams.opt_alg == 'RED_Prox' or hparams.opt_alg == 'RED' or hparams.opt_alg == 'Data_GD':
+            sigma_k_denoiser = 2.
+            if thres_conv == None:
+                thres_conv = 1e-6
+            if lamb == None:
+                lamb = 0.065
+            if sigma_denoiser == None:
+                sigma_denoiser = sigma_k_denoiser*noise_level_img
+            if hparams.maxitr == None:
+                maxitr = 400
+            std = sigma_denoiser / 255.
+    
+    return lamb, std, maxitr, thres_conv, stepsize, std_0, std_end, lamb_0, lamb_end, beta
+
+def create_out_dir(exp_out_path, hparams, k_index = 0):
+    """
+        Create the directory to save results.
+    """
     if not os.path.exists(exp_out_path):
         os.mkdir(exp_out_path)
-    exp_out_path = os.path.join(exp_out_path, dataset_name)
-    if not os.path.exists(exp_out_path):
-        os.mkdir(exp_out_path)
-    return exp_out_path
+    exp_out_path_new = os.path.join(exp_out_path, hparams.degradation_mode)
+    if not os.path.exists(exp_out_path_new):
+        os.mkdir(exp_out_path_new)
+    exp_out_path_new = os.path.join(exp_out_path_new, hparams.dataset_name)
+    if not os.path.exists(exp_out_path_new):
+        os.mkdir(exp_out_path_new)
+    if hparams.degradation_mode == 'deblurring':
+        exp_out_path_new = os.path.join(exp_out_path_new, hparams.opt_alg+"_k_"+str(k_index))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.degradation_mode == 'deblurring':
+        exp_out_path = os.path.join(exp_out_path, "mask_prop_"+str(hparams.prop_mask))
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+    exp_out_path_new = os.path.join(exp_out_path_new, "noise_"+str(hparams.noise_level_img))
+    if not os.path.exists(exp_out_path_new):
+        os.mkdir(exp_out_path_new)
+    if hparams.maxitr != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "maxitr_"+str(hparams.maxitr))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.seed != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "seed_"+str(hparams.seed))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.stepsize != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "stepsize_"+str(hparams.stepsize))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.lamb_0 != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "lamb_0_"+str(hparams.lamb_0))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.lamb_end != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "lamb_end_"+str(hparams.lamb_end))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.std_0 != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "std_0_"+str(hparams.std_0))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.std_end != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "std_end_"+str(hparams.std_end))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.lamb != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "lamb_"+str(hparams.lamb))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.beta != None:
+        exp_out_path = os.path.join(exp_out_path, "beta_"+str(hparams.beta))
+        if not os.path.exists(exp_out_path):
+            os.mkdir(exp_out_path)
+    if hparams.sigma_denoiser != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "sigma_denoiser_"+str(hparams.sigma_denoiser))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.im_init != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "im_init_"+hparams.im_init)
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.no_data_term == True:
+        exp_out_path_new = os.path.join(exp_out_path_new, "no_data_term")
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.annealing_number != None:
+        exp_out_path_new = os.path.join(exp_out_path_new, "annealing_number_"+str(hparams.annealing_number))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    if hparams.num_noise != 1:
+        exp_out_path_new = os.path.join(exp_out_path_new, "num_noise_"+str(hparams.num_noise))
+        if not os.path.exists(exp_out_path_new):
+            os.mkdir(exp_out_path_new)
+    return exp_out_path_new
 
 
 '''
