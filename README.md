@@ -112,9 +112,20 @@ python SR.py --dataset_name "set3c" --opt_alg "PnP SGD" --beta 0.02 --lamb 0.5 -
 - no_early_stopping : to not use early stop for RED or RED Prox
 - exp_out_path : the path of output saving, by default create a folder outside the project in the path "../../Result_SNORE"
 
+### Deblurring
+- kernel_path : to use it own kernel of blur save at numpy array
+- kernel_indexes : the chose the used kernel for restoration integer between 0 and 9, by default all kernel are applied and restored successively
 
+### Inpainting
+- prop_mask : to change the masked pixels proportion, by default 0.5
 
+### Super-resolution
+- sf : to change the super-resolution factor, by default 2
+- kernel_path : to use it own kernel of blur save at numpy array
+- kernel_indexes : the chose the used kernel for restoration integer between 0 and 9, by default all kernel are applied and restored successively
 
+### Despeckling
+- L : to change the number of look, by default 20
 
 
 
