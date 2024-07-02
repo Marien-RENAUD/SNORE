@@ -144,7 +144,7 @@ def create_out_dir(exp_out_path, hparams, k_index = 0):
         exp_out_path_new = os.path.join(exp_out_path_new, hparams.opt_alg+"_k_"+str(k_index))
         if not os.path.exists(exp_out_path_new):
             os.mkdir(exp_out_path_new)
-    if hparams.degradation_mode == 'deblurring':
+    if hparams.degradation_mode == 'inpainting':
         exp_out_path = os.path.join(exp_out_path, "mask_prop_"+str(hparams.prop_mask))
         if not os.path.exists(exp_out_path):
             os.mkdir(exp_out_path)
