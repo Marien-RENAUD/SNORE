@@ -6,7 +6,7 @@ import matplotlib.patches as patches
 from matplotlib import gridspec
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as PSNR
-from utils.utils_restoration import rescale, psnr, array2tensor, tensor2array, get_gaussian_noise_parameters, create_out_dir, single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave
+from utils.utils_restoration import rescale, psnr, array2tensor, tensor2array, get_parameters, create_out_dir, single2uint,crop_center, matlab_style_gauss2D, imread_uint, imsave
 from argparse import ArgumentParser
 import os
 import argparse
@@ -1792,15 +1792,16 @@ if pars.fig_number == 19:
 
     size_title = 30
     text_size = 28
+    line_size = 7
 
     ax = plt.subplot(gs[0])
     iteration = np.arange(len(est_n_SNORE))
-    ax.plot(iteration, est_n_SNORE - std_list_SNORE, label = "SNORE")#r"$(\hat{\sigma} - \sigma)(\mathbf{x}_k)$")
-    ax.plot(iteration, clean_img_noise_SNORE * np.ones(len(iteration)), label = r"$\hat{\sigma}(\mathbf{x})$")
-    ax.plot(iteration, est_n_RED - std_list_RED, label = "RED Prox")#r"$(\hat{\sigma} - \sigma)(\mathbf{x}_k)$")
+    ax.plot(iteration, est_n_SNORE - std_list_SNORE, label = "SNORE", linewidth = line_size)#r"$(\hat{\sigma} - \sigma)(\mathbf{x}_k)$")
+    ax.plot(iteration, clean_img_noise_SNORE * np.ones(len(iteration)), linewidth = line_size)#, label = r"$\hat{\sigma}(\mathbf{x})$")
+    ax.plot(iteration, est_n_RED - std_list_RED, label = "RED Prox", linewidth = line_size)#r"$(\hat{\sigma} - \sigma)(\mathbf{x}_k)$")
     ax.set_title(r"$(\hat{\sigma} - \sigma)(\mathbf{x}_k)$", fontsize=size_title)
-    ax.set_yticks([-0.04, 0, 0.04])
-    ax.set_ylim(-0.04, 0.04)
+    ax.set_yticks([-0.2, clean_img_noise_SNORE, 0.05], labels = ["-0.2", r"$\hat{\sigma}(\mathbf{x}_{GT})$", "0.05"])
+    ax.set_ylim(-0.2, 0.05)
     ax.yaxis.set_tick_params(labelsize=text_size)
     ax.set_xticks([0, 500])
     ax.set_xlabel("iterations", fontsize=text_size)

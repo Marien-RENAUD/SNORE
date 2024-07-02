@@ -584,15 +584,6 @@ class PnP_restoration():
         self.noise_estimated_list.append(estimated_noise_list)
 
     def save_curves(self, save_path):
-
-        import matplotlib
-        matplotlib.rcParams.update({'font.size': 17})
-        matplotlib.rcParams['lines.linewidth'] = 2
-        matplotlib.style.use('seaborn-darkgrid')
-        use_tex = matplotlib.checkdep_usetex(True)
-        if use_tex:
-            plt.rcParams['text.usetex'] = True
-
         plt.figure(0)
         fig, ax = plt.subplots()
         ax.spines['right'].set_visible(False)
